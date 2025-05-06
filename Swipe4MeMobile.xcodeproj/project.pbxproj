@@ -50,30 +50,9 @@
 		3EBA2A5B2DC9327300C5A480 /* .gitignore */ = {isa = PBXFileReference; lastKnownFileType = text; path = .gitignore; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
-/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
-		3EBA29322DC92C7F00C5A480 /* Exceptions for "Swipe4MeMobile" folder in "Swipe4MeMobileTests" target */ = {
-			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
-			membershipExceptions = (
-				"GoogleService-Info.plist",
-			);
-			target = 3E0E1F472DC929EA00329B38 /* Swipe4MeMobileTests */;
-		};
-		3EBA29332DC92C7F00C5A480 /* Exceptions for "Swipe4MeMobile" folder in "Swipe4MeMobileUITests" target */ = {
-			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
-			membershipExceptions = (
-				"GoogleService-Info.plist",
-			);
-			target = 3E0E1F512DC929EA00329B38 /* Swipe4MeMobileUITests */;
-		};
-/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
-
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		3E0E1F3A2DC929E800329B38 /* Swipe4MeMobile */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-				3EBA29322DC92C7F00C5A480 /* Exceptions for "Swipe4MeMobile" folder in "Swipe4MeMobileTests" target */,
-				3EBA29332DC92C7F00C5A480 /* Exceptions for "Swipe4MeMobile" folder in "Swipe4MeMobileUITests" target */,
-			);
 			path = Swipe4MeMobile;
 			sourceTree = "<group>";
 		};
