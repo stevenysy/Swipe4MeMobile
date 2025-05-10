@@ -47,7 +47,7 @@ enum AuthenticationState {
             errorMessage = error.localizedDescription
         }
     }
-
+    
     func deleteAccount() async -> Bool {
         do {
             try await user?.delete()
@@ -62,8 +62,18 @@ enum AuthenticationState {
     
 }
 
-enum AuthenticationError: Error {
+enum AuthenticationError: LocalizedError {
     case tokenError(message: String)
+    case nonVanderbiltEmailError(message: String)
+    
+    var errorDescription: String? {
+        switch self {
+        case .tokenError(let message):
+            return message
+        case .nonVanderbiltEmailError(let message):
+            return message
+        }
+    }
 }
 
 // Google sign in
@@ -84,14 +94,21 @@ extension AuthenticationManager {
         
         do {
             let userAuthentication = try await GIDSignIn.sharedInstance.signIn(withPresenting: rootViewController)
-
+            
             let user = userAuthentication.user
             guard let idToken = user.idToken else { throw AuthenticationError.tokenError(message: "ID token missing") }
+            
+            // Check for vanderbilt email domain
+            guard let email = user.profile?.email,
+                  email.hasSuffix("@vanderbilt.edu") else {
+                throw AuthenticationError.nonVanderbiltEmailError(message: "Please use your Vanderbilt email address")
+            }
+            
             let accessToken = user.accessToken
-
+            
             let credential = GoogleAuthProvider.credential(withIDToken: idToken.tokenString,
                                                            accessToken: accessToken.tokenString)
-
+            
             let result = try await Auth.auth().signIn(with: credential)
             if let isNewUser = result.additionalUserInfo?.isNewUser, isNewUser {
                 isFirstTimeSignIn = true
@@ -102,9 +119,7 @@ extension AuthenticationManager {
         }
         catch {
             print(error.localizedDescription)
-            if error.localizedDescription != "The user canceled the sign-in flow."{
-                self.errorMessage = error.localizedDescription
-            }
+            self.errorMessage = error.localizedDescription
             return false
         }
     }
