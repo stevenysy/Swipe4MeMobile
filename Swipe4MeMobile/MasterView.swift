@@ -13,17 +13,15 @@ struct MasterView: View {
     @State private var showSignInView = false
 
     var body: some View {
-        LoginView()
-            .environment(authManager)
-//        Group {
-//            switch authManager.authenticationState {
-//
-//            case .progress:
-//                ProgressView()
-//
-//            case .unauthenticated:
-//                LoginView()
-//                    .environment(authManager)
+        Group {
+            switch authManager.authState {
+
+            case .progress:
+                ProgressView()
+
+            case .unauthenticated:
+                LoginView()
+                    .environment(authManager)
 //                    .task {
 //                        do {
 //                            try await Task.sleep(nanoseconds: 2_000_000_000)
@@ -32,8 +30,8 @@ struct MasterView: View {
 //                            print("Error \(error.localizedDescription)")
 //                        }
 //                    }
-//
-//            case .authenticated:
+
+            case .authenticated:
 //                switch UserManager.shared.authenticationViewState {
 //                case .loading:
 //                    ProgressView()
@@ -52,14 +50,16 @@ struct MasterView: View {
 //                            UserManager.shared.startListeningForUserChanges()
 //                        }
 //                }
-//            }
-//        }
-//        .animation(.default, value: authManager.authenticationState)
-//        .onChange(of: authManager.errorMessage) {
-//            showAlert = !authManager.errorMessage.isEmpty
-//        }
-//        .alert(isPresented: $showAlert) {
-//            Alert(title: Text("Error"), message: Text(authManager.errorMessage), dismissButton: .default(Text("OK")) {authManager.errorMessage = ""})
-//        }
+                HomeView()
+                    .environment(authManager)
+            }
+        }
+        .animation(.default, value: authManager.authState)
+        .onChange(of: authManager.errorMessage) {
+            showAlert = !authManager.errorMessage.isEmpty
+        }
+        .alert(isPresented: $showAlert) {
+            Alert(title: Text("Error"), message: Text(authManager.errorMessage), dismissButton: .default(Text("OK")) {authManager.errorMessage = ""})
+        }
     }
 }
