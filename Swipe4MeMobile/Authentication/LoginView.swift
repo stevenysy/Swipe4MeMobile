@@ -11,14 +11,18 @@ struct LoginView: View {
     @Environment(AuthenticationManager.self) var authManager
     var body: some View {
         Text("Welcome to Swipe4Me!")
-
+        
         GoogleSignInButton
     }
-
+    
     var GoogleSignInButton: some View {
         Button {
             Task {
-                _ = await authManager.signInWithGoogle()
+                guard let user = await authManager.signInWithGoogle() else { return }
+                
+                if authManager.isFirstTimeSignIn {
+                    await UserManager.shared.createNewUser(newUser: user)
+                }
             }
         } label: {
             HStack(alignment: .center, spacing: 0) {
