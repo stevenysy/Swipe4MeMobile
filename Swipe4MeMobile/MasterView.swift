@@ -50,8 +50,10 @@ struct MasterView: View {
 //                            UserManager.shared.startListeningForUserChanges()
 //                        }
 //                }
-                HomeView()
-                    .environment(authManager)
+                NavigationStack {
+                    CreateSwipeRequestView(request: SwipeRequest())
+                        .environment(authManager)
+                }
             }
         }
         .animation(.default, value: authManager.authState)

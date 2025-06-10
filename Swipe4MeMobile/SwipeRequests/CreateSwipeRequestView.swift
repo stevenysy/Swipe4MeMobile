@@ -6,10 +6,13 @@
 //
 
 import SwiftUI
+import FirebaseCore
 
 struct CreateSwipeRequestView: View {
     @State var request: SwipeRequest
-    
+    @State private var selectedTime = Date()
+    @Environment(AuthenticationManager.self) var authManager
+
     var body: some View {
         Form {
             Section {
@@ -23,12 +26,49 @@ struct CreateSwipeRequestView: View {
                     }
                 }
             }
+
+            Section {
+                HStack {
+                    Text("Meeting Time")
+                    Spacer()
+                    DatePicker("Meeting Time", selection: $selectedTime, in: Date()...)
+                }
+                .frame(height: 50)
+            }
+
         }
         .navigationTitle("Make a Swipe Request")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .topBarLeading) {
+                Button {
+                    print("Cancel button pressed") // TODO: Add navigation
+                } label : {
+                    Text("Cancel")
+                }
+            }
+            
+            ToolbarItem(placement: .topBarTrailing) {
+                Button {
+                    request.meetingTime = Timestamp(date: selectedTime)
+                    request.requesterId = authManager.user?.uid ?? ""
+                    
+                    dump(request)
+                    
+                    Task {
+                        SwipeRequestManager.shared.addSwipeRequestToDatabase(swipeRequest: request, isEdit: false)
+                    }
+                } label: {
+                    Text("Submit")
+                }
+            }
+        }
     }
 }
 
 #Preview {
-    CreateSwipeRequestView(request: SwipeRequest())
+    NavigationStack {
+        CreateSwipeRequestView(request: SwipeRequest())
+            .environment(AuthenticationManager())
+    }
 }

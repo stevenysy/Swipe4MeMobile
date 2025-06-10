@@ -9,7 +9,7 @@ import FirebaseFirestore
 
 struct SwipeRequest: Codable, Identifiable, Equatable, Hashable {
     @DocumentID var id: String?
-    let requesterId: String
+    var requesterId: String
     var swiperId: String
     var location: DiningLocation
     var meetingTime: Timestamp
