@@ -30,12 +30,27 @@ struct SwipeRequest: Codable, Identifiable, Equatable, Hashable {
     }
 }
 
-enum RequestStatus: Codable {
+enum RequestStatus: String, Codable {
     case open
     case inProgress
     case awaitingReview
     case complete
     case canceled
+
+    var displayName: String {
+        switch self {
+        case .open:
+            return "Open"
+        case .inProgress:
+            return "In Progress"
+        case .awaitingReview:
+            return "Awaiting Review"
+        case .complete:
+            return "Complete"
+        case .canceled:
+            return "Canceled"
+        }
+    }
 }
 
 enum DiningLocation: String, CaseIterable, Identifiable, Codable {
