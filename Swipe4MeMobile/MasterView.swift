@@ -50,7 +50,7 @@ struct MasterView: View {
 //                            UserManager.shared.startListeningForUserChanges()
 //                        }
 //                }
-                HomeView()
+                AppView()
                     .environment(authManager)
             }
         }
