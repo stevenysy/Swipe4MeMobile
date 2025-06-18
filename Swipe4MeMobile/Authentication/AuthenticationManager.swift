@@ -17,18 +17,18 @@ enum AuthenticationState {
 
 @MainActor
 @Observable class AuthenticationManager {
-
+    
     var authState: AuthenticationState = .progress
     var isFirstTimeSignIn = false
     var user: User?
     var errorMessage = ""
-
+    
     init() {
         registerAuthStateHandler()
     }
-
+    
     private var authStateHandler: AuthStateDidChangeListenerHandle?
-
+    
     private func registerAuthStateHandler() {
         if authStateHandler == nil {
             authStateHandler = Auth.auth().addStateDidChangeListener { auth, user in
@@ -37,7 +37,7 @@ enum AuthenticationState {
             }
         }
     }
-
+    
     func signOut() {
         do {
             try Auth.auth().signOut()
@@ -46,7 +46,7 @@ enum AuthenticationState {
             errorMessage = error.localizedDescription
         }
     }
-
+    
     func deleteAccount() async -> Bool {
         do {
             try await user?.delete()
@@ -57,13 +57,13 @@ enum AuthenticationState {
             return false
         }
     }
-
+    
 }
 
 enum AuthenticationError: LocalizedError {
     case tokenError(message: String)
     case nonVanderbiltEmailError(message: String)
-
+    
     var errorDescription: String? {
         switch self {
         case .tokenError(let message):
@@ -82,38 +82,38 @@ extension AuthenticationManager {
         }
         let config = GIDConfiguration(clientID: clientID)
         GIDSignIn.sharedInstance.configuration = config
-
+        
         guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-            let window = windowScene.windows.first,
-            let rootViewController = window.rootViewController
+              let window = windowScene.windows.first,
+              let rootViewController = window.rootViewController
         else {
             print("There is no root view controller!")
             return nil
         }
-
+        
         do {
             let userAuthentication = try await GIDSignIn.sharedInstance.signIn(
                 withPresenting: rootViewController)
-
+            
             let user = userAuthentication.user
             guard let idToken = user.idToken else {
                 throw AuthenticationError.tokenError(message: "ID token missing")
             }
-
+            
             // Check for vanderbilt email domain
             guard let email = user.profile?.email,
-                email.hasSuffix("@vanderbilt.edu")
+                  email.hasSuffix("@vanderbilt.edu")
             else {
                 throw AuthenticationError.nonVanderbiltEmailError(
                     message: "Please use your Vanderbilt email address")
             }
-
+            
             let accessToken = user.accessToken
-
+            
             let credential = GoogleAuthProvider.credential(
                 withIDToken: idToken.tokenString,
                 accessToken: accessToken.tokenString)
-
+            
             let result = try await Auth.auth().signIn(with: credential)
             if let isNewUser = result.additionalUserInfo?.isNewUser, isNewUser {
                 isFirstTimeSignIn = true
@@ -121,22 +121,94 @@ extension AuthenticationManager {
             let firebaseUser = result.user
             print(
                 "User \(firebaseUser.uid) signed in with email \(firebaseUser.email ?? "unknown")")
-            return createSfmUser(firebaseUser: firebaseUser)
+            return createSfmUserFromGoogleSignIn(firebaseUser: firebaseUser)
         } catch {
             print(error.localizedDescription)
             self.errorMessage = error.localizedDescription
             return nil
         }
     }
-
-    private func createSfmUser(firebaseUser: FirebaseAuth.User) -> SFMUser {
+    
+    private func createSfmUserFromGoogleSignIn(firebaseUser: FirebaseAuth.User) -> SFMUser {
+        dump(firebaseUser)
+        
         let fullName = firebaseUser.displayName ?? ""
         let splitFullName = fullName.split(separator: " ")
         let firstName = String(splitFullName.first ?? "")
         let lastName = splitFullName.count >= 2 ? String(splitFullName.last ?? "") : ""
         let email = firebaseUser.email ?? ""
         let profilePictureUrl = firebaseUser.photoURL?.absoluteString ?? ""
+        
+        return SFMUser(
+            firstName: firstName,
+            lastName: lastName,
+            email: email,
+            profilePictureUrl: profilePictureUrl
+        )
+    }
+}
 
+// Microsoft sign in
+extension AuthenticationManager {
+    func signInWithMicrosoft() async -> SFMUser? {
+//        guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+//              let window = windowScene.windows.first,
+//              let rootViewController = window.rootViewController
+//        else {
+//            print("There is no root view controller!")
+//            return nil
+//        }
+        
+        do {
+            // Create Microsoft provider
+            let provider = OAuthProvider(providerID: "microsoft.com")
+            
+            // Configure the provider (optional)
+            provider.customParameters = [
+                "prompt": "select_account"
+            ]
+            
+            // Step 1: Get the OAuth credential by presenting the Microsoft login.
+            let credential = try await provider.credential(with: nil)
+            
+            // Step 2: Use credential to sign in to Firebase
+            let result = try await Auth.auth().signIn(with: credential)
+            
+            // Check for Vanderbilt email domain
+            guard let email = result.user.email,
+                  email.hasSuffix("@vanderbilt.edu")
+            else {
+                throw AuthenticationError.nonVanderbiltEmailError(
+                    message: "Please use your Vanderbilt email address")
+            }
+            
+            // Check if this is a new user
+            if let isNewUser = result.additionalUserInfo?.isNewUser, isNewUser {
+                isFirstTimeSignIn = true
+            }
+            
+            let firebaseUser = result.user
+            print("User \(firebaseUser.uid) signed in with email \(firebaseUser.email ?? "unknown")")
+            
+            return createSfmUserFromMicrosoftSignIn(firebaseUser: firebaseUser)
+            
+        } catch {
+            print(error.localizedDescription)
+            self.errorMessage = error.localizedDescription
+            return nil
+        }
+    }
+    
+    private func createSfmUserFromMicrosoftSignIn(firebaseUser: FirebaseAuth.User) -> SFMUser {
+        // Name parsing needs to be different for MS because the display name is
+        // in Last, First format
+        let fullName = firebaseUser.displayName ?? ""
+        let splitFullName = fullName.split(separator: ", ")
+        let lastName = String(splitFullName.first ?? "")
+        let firstName = splitFullName.count >= 2 ? String(splitFullName.last ?? "") : ""
+        let email = firebaseUser.email ?? ""
+        let profilePictureUrl = firebaseUser.photoURL?.absoluteString ?? ""
+        
         return SFMUser(
             firstName: firstName,
             lastName: lastName,
