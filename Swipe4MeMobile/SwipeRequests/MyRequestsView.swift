@@ -59,19 +59,19 @@ private struct MyRequestsListView: View {
 
 private struct MyRequestsContentView: View {
     let requests: [SwipeRequest]
-
+    
     // Group requests by the start of the day
     private var groupedRequests: [Date: [SwipeRequest]] {
         Dictionary(grouping: requests) { request in
             Calendar.current.startOfDay(for: request.meetingTime.dateValue())
         }
     }
-
+    
     // Get the sorted list of days
     private var sortedDays: [Date] {
         groupedRequests.keys.sorted()
     }
-
+    
     var body: some View {
         Group {
             if requests.isEmpty {
@@ -81,29 +81,41 @@ private struct MyRequestsContentView: View {
                     description: Text("You haven't made any swipe requests yet.")
                 )
             } else {
-                List {
-                    ForEach(sortedDays, id: \.self) { day in
-                        Section {
-                            ForEach(groupedRequests[day] ?? []) { request in
-                                requestRow(for: request)
+                ScrollView {
+                    // Use LazyVStack for performance and pinned headers
+                    LazyVStack(alignment: .leading, spacing: 16, pinnedViews: [.sectionHeaders]) {
+                        ForEach(sortedDays, id: \.self) { day in
+                            Section {
+                                // A VStack to arrange the cards vertically
+                                VStack(spacing: 12) {
+                                    ForEach(groupedRequests[day] ?? []) { request in
+                                        requestCard(for: request)
+                                    }
+                                }
+                            } header: {
+                                // Custom header view
+                                Text(
+                                    day,
+                                    format: .dateTime.weekday(.abbreviated).month(.twoDigits).day(
+                                        .twoDigits)
+                                )
+                                .font(.headline)
+                                .padding(.top)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .background(Color(.systemGroupedBackground))
                             }
-                        } header: {
-                            Text(
-                                day,
-                                format: .dateTime.weekday(.abbreviated).month(.twoDigits).day(
-                                    .twoDigits)
-                            )
-                            .font(.headline)
                         }
                     }
                 }
-                .listStyle(.plain)
+                // Add horizontal padding to the entire scrollable area
+                .padding(.horizontal)
+                .background(Color(.systemGroupedBackground))
             }
         }
     }
-
-    // Builds a single row for the request list.
-    private func requestRow(for request: SwipeRequest) -> some View {
+    
+    // Builds a single card for the request list.
+    private func requestCard(for request: SwipeRequest) -> some View {
         HStack {
             VStack(alignment: .leading, spacing: 5) {
                 Text(request.location.rawValue)
@@ -112,14 +124,17 @@ private struct MyRequestsContentView: View {
                     .font(.subheadline)
                     .foregroundColor(.secondary)
             }
-
+            
             Spacer()
-
+            
             statusPill(for: request.status)
         }
-        .padding(.vertical, 8)
+        .padding()
+        .background(Color(.secondarySystemGroupedBackground))
+        .cornerRadius(12)
+        .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
     }
-
+    
     // Creates a colored status indicator pill.
     private func statusPill(for status: RequestStatus) -> some View {
         Text(status.displayName)
@@ -130,7 +145,7 @@ private struct MyRequestsContentView: View {
             .foregroundColor(statusColor(for: status))
             .cornerRadius(8)
     }
-
+    
     // Determines the color for a given request status.
     private func statusColor(for status: RequestStatus) -> Color {
         switch status {
