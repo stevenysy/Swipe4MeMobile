@@ -13,7 +13,7 @@ import SwiftUI
 // and fetches the relevant requests from Firestore.
 struct MyRequestsView: View {
     @Environment(AuthenticationManager.self) private var authManager
-
+    
     var body: some View {
         // Since MasterView ensures this view is only shown for authenticated users,
         // we can safely access the user's ID.
@@ -37,7 +37,7 @@ struct MyRequestsView: View {
 // for a specific user.
 private struct MyRequestsListView: View {
     @FirestoreQuery var requests: [SwipeRequest]
-
+    
     // Initializes the Firestore query to fetch requests for the given user ID.
     init(requesterId: String) {
         // We initialize the query here because it depends on a dynamic value (requesterId).
@@ -51,7 +51,7 @@ private struct MyRequestsListView: View {
             ]
         )
     }
-
+    
     var body: some View {
         MyRequestsContentView(requests: requests)
     }
@@ -59,7 +59,19 @@ private struct MyRequestsListView: View {
 
 private struct MyRequestsContentView: View {
     let requests: [SwipeRequest]
-
+    
+    // Group requests by the start of the day
+    private var groupedRequests: [Date: [SwipeRequest]] {
+        Dictionary(grouping: requests) { request in
+            Calendar.current.startOfDay(for: request.meetingTime.dateValue())
+        }
+    }
+    
+    // Get the sorted list of days
+    private var sortedDays: [Date] {
+        groupedRequests.keys.sorted()
+    }
+    
     var body: some View {
         Group {
             if requests.isEmpty {
@@ -69,14 +81,23 @@ private struct MyRequestsContentView: View {
                     description: Text("You haven't made any swipe requests yet.")
                 )
             } else {
-                List(requests) { request in
-                    requestRow(for: request)
+                List {
+                    ForEach(sortedDays, id: \.self) { day in
+                        Section {
+                            ForEach(groupedRequests[day] ?? []) { request in
+                                requestRow(for: request)
+                            }
+                        } header: {
+                            Text(day, format: .dateTime.month(.twoDigits).day(.twoDigits))
+                                .font(.headline)
+                        }
+                    }
                 }
                 .listStyle(.plain)
             }
         }
     }
-
+    
     // Builds a single row for the request list.
     private func requestRow(for request: SwipeRequest) -> some View {
         HStack {
@@ -87,14 +108,14 @@ private struct MyRequestsContentView: View {
                     .font(.subheadline)
                     .foregroundColor(.secondary)
             }
-
+            
             Spacer()
-
+            
             statusPill(for: request.status)
         }
         .padding(.vertical, 8)
     }
-
+    
     // Creates a colored status indicator pill.
     private func statusPill(for status: RequestStatus) -> some View {
         Text(status.displayName)
@@ -105,7 +126,7 @@ private struct MyRequestsContentView: View {
             .foregroundColor(statusColor(for: status))
             .cornerRadius(8)
     }
-
+    
     // Determines the color for a given request status.
     private func statusColor(for status: RequestStatus) -> Color {
         switch status {

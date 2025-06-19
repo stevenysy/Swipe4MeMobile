@@ -34,6 +34,22 @@ extension SwipeRequest {
     static var mockRequests: [SwipeRequest] {
         return [
             SwipeRequest(
+                id: "mock4",
+                requesterId: "user_requester_4",
+                swiperId: "user_swiper_4",
+                location: .kissam,
+                meetingTime: Date().addingTimeInterval(-86400), // Yesterday
+                status: .complete
+            ),
+            SwipeRequest(
+                id: "mock3",
+                requesterId: "user_requester_3",
+                swiperId: "user_swiper_3",
+                location: .rand,
+                meetingTime: Date().addingTimeInterval(-1800), // 30 minutes ago
+                status: .awaitingReview
+            ),
+            SwipeRequest(
                 id: "mock1",
                 requesterId: "user_requester_1",
                 swiperId: "user_swiper_1",
@@ -48,22 +64,6 @@ extension SwipeRequest {
                 location: .zeppos,
                 meetingTime: Date().addingTimeInterval(7200), // In 2 hours
                 status: .open
-            ),
-            SwipeRequest(
-                id: "mock3",
-                requesterId: "user_requester_3",
-                swiperId: "user_swiper_3",
-                location: .rand,
-                meetingTime: Date().addingTimeInterval(-1800), // 30 minutes ago
-                status: .awaitingReview
-            ),
-            SwipeRequest(
-                id: "mock4",
-                requesterId: "user_requester_4",
-                swiperId: "user_swiper_4",
-                location: .kissam,
-                meetingTime: Date().addingTimeInterval(-86400), // Yesterday
-                status: .complete
             ),
             SwipeRequest(
                 id: "mock5",
