@@ -13,7 +13,7 @@ import SwiftUI
 // and fetches the relevant requests from Firestore.
 struct MyRequestsView: View {
     @Environment(AuthenticationManager.self) private var authManager
-
+    
     var body: some View {
         NavigationStack {
             // Since MasterView ensures this view is only shown for authenticated users,
@@ -42,13 +42,24 @@ struct MyRequestsView: View {
             }
         }
     }
+    
+    // A computed property for the empty state view.
+    // The @ViewBuilder is not strictly necessary here but is good practice.
+    @ViewBuilder
+    private var emptyStateView: some View {
+        ContentUnavailableView(
+            "No Requests Found",
+            systemImage: "doc.text.magnifyingglass",
+            description: Text("You haven't made any swipe requests yet.")
+        )
+    }
 }
 
 // A private view responsible for querying and displaying the list of requests
 // for a specific user.
 private struct MyRequestsListView: View {
     @FirestoreQuery var requests: [SwipeRequest]
-
+    
     // Initializes the Firestore query to fetch requests for the given user ID.
     init(requesterId: String) {
         // We initialize the query here because it depends on a dynamic value (requesterId).
@@ -62,7 +73,7 @@ private struct MyRequestsListView: View {
             ]
         )
     }
-
+    
     var body: some View {
         MyRequestsContentView(requests: requests)
     }
@@ -70,19 +81,19 @@ private struct MyRequestsListView: View {
 
 private struct MyRequestsContentView: View {
     let requests: [SwipeRequest]
-
+    
     // Group requests by the start of the day
     private var groupedRequests: [Date: [SwipeRequest]] {
         Dictionary(grouping: requests) { request in
             Calendar.current.startOfDay(for: request.meetingTime.dateValue())
         }
     }
-
+    
     // Get the sorted list of days
     private var sortedDays: [Date] {
         groupedRequests.keys.sorted()
     }
-
+    
     var body: some View {
         Group {
             if requests.isEmpty {
@@ -92,79 +103,58 @@ private struct MyRequestsContentView: View {
                     description: Text("You haven't made any swipe requests yet.")
                 )
             } else {
-                ScrollView {
-                    // Use LazyVStack for performance and pinned headers
-                    LazyVStack(alignment: .leading, spacing: 16, pinnedViews: [.sectionHeaders]) {
-                        ForEach(sortedDays, id: \.self) { day in
-                            Section {
-                                // A VStack to arrange the cards vertically
-                                VStack(spacing: 12) {
-                                    ForEach(groupedRequests[day] ?? []) { request in
-                                        requestCard(for: request)
-                                    }
-                                }
-                            } header: {
-                                // Custom header view
-                                Text(
-                                    day,
-                                    format: .dateTime.weekday(.abbreviated).month(.twoDigits).day(
-                                        .twoDigits)
-                                )
-                                .font(.headline)
-                                .padding(.top)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .background(Color(.systemGroupedBackground))
-                            }
-                        }
-                    }
+                requestsListView
+            }
+        }
+    }
+    
+    // A computed property for the scrollable list of requests.
+    private var requestsListView: some View {
+        ScrollView {
+            // Use LazyVStack for performance and pinned headers
+            LazyVStack(alignment: .leading, spacing: 16, pinnedViews: [.sectionHeaders]) {
+                ForEach(sortedDays, id: \.self) { day in
+                    // Each day is its own section
+                    daySectionView(for: day)
                 }
-                // Add horizontal padding to the entire scrollable area
-                .padding(.horizontal)
-                .background(Color(.systemGroupedBackground))
             }
         }
+        // Add horizontal padding to the entire scrollable area
+        .padding(.horizontal)
+        .background(Color(.systemGroupedBackground))
     }
-
-    // Builds a single card for the request list.
-    private func requestCard(for request: SwipeRequest) -> some View {
-        HStack {
-            VStack(alignment: .leading, spacing: 5) {
-                Text(request.location.rawValue)
-                    .font(.headline)
-                Text("Meeting at: \(request.meetingTime.dateValue(), style: .time)")
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-            }
-
-            Spacer()
-
-            statusPill(for: request.status)
+    
+    // A method to build a section for a specific day.
+    private func daySectionView(for day: Date) -> some View {
+        Section {
+            // Content of the section (the cards)
+            daySectionContent(for: day)
+        } header: {
+            // Header for the section (the date)
+            daySectionHeader(for: day)
         }
-        .padding()
-        .background(Color(.secondarySystemGroupedBackground))
-        .cornerRadius(12)
-        .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
     }
-
-    // Creates a colored status indicator pill.
-    private func statusPill(for status: RequestStatus) -> some View {
-        Text(status.displayName)
-            .font(.caption.bold())
-            .padding(.horizontal, 10)
-            .padding(.vertical, 5)
-            .background(statusColor(for: status).opacity(0.15))
-            .foregroundColor(statusColor(for: status))
-            .cornerRadius(8)
+    
+    // A method to build the header for a day section.
+    private func daySectionHeader(for day: Date) -> some View {
+        Text(
+            day,
+            format: .dateTime.weekday(.abbreviated).month(.twoDigits).day(.twoDigits)
+        )
+        .font(.headline)
+        .padding(.top)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color(.systemGroupedBackground))
     }
-
-    // Determines the color for a given request status.
-    private func statusColor(for status: RequestStatus) -> Color {
-        switch status {
-        case .open: .green
-        case .inProgress: .blue
-        case .awaitingReview: .orange
-        case .complete: .purple
-        case .canceled: .red
+    
+    // A method to build the content (cards) for a day section.
+    private func daySectionContent(for day: Date) -> some View {
+        // A VStack to arrange the cards vertically
+        VStack(spacing: 12) {
+            ForEach(groupedRequests[day] ?? []) { request in
+                // Using the refactored card view
+                SwipeRequestCardView(request: request)
+            }
         }
     }
 }
@@ -172,16 +162,6 @@ private struct MyRequestsContentView: View {
 #Preview {
     NavigationStack {
         MyRequestsContentView(requests: SwipeRequest.mockRequests)
-            .navigationTitle("My Requests")
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    NavigationLink {
-                        CreateSwipeRequestView(request: SwipeRequest())
-                    } label: {
-                        Image(systemName: "plus")
-                    }
-                }
-            }
     }
     .environment(AuthenticationManager())
 }
