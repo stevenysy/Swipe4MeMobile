@@ -12,6 +12,7 @@ struct CreateSwipeRequestView: View {
     @State var request: SwipeRequest
     @State private var selectedTime = Date()
     @Environment(AuthenticationManager.self) var authManager
+    @Environment(\.dismiss) private var dismiss
 
     var body: some View {
         Form {
@@ -40,13 +41,13 @@ struct CreateSwipeRequestView: View {
         .navigationTitle("Make a Swipe Request")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            ToolbarItem(placement: .topBarLeading) {
-                Button {
-                    print("Cancel button pressed") // TODO: Add navigation
-                } label : {
-                    Text("Cancel")
-                }
-            }
+//            ToolbarItem(placement: .topBarLeading) {
+//                Button {
+//                    print("Cancel button pressed") // TODO: Add navigation
+//                } label : {
+//                    Text("Cancel")
+//                }
+//            }
             
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
@@ -57,6 +58,7 @@ struct CreateSwipeRequestView: View {
                     
                     Task {
                         SwipeRequestManager.shared.addSwipeRequestToDatabase(swipeRequest: request, isEdit: false)
+                        dismiss()
                     }
                 } label: {
                     Text("Submit")

@@ -15,20 +15,31 @@ struct MyRequestsView: View {
     @Environment(AuthenticationManager.self) private var authManager
 
     var body: some View {
-        // Since MasterView ensures this view is only shown for authenticated users,
-        // we can safely access the user's ID.
-        if let userId = authManager.user?.uid {
-            MyRequestsListView(requesterId: userId)
+        NavigationStack {
+            // Since MasterView ensures this view is only shown for authenticated users,
+            // we can safely access the user's ID.
+            if let userId = authManager.user?.uid {
+                MyRequestsListView(requesterId: userId)
+                    .navigationTitle("My Requests")
+                    .toolbar {
+                        ToolbarItem(placement: .navigationBarTrailing) {
+                            NavigationLink {
+                                CreateSwipeRequestView(request: SwipeRequest())
+                            } label: {
+                                Image(systemName: "plus")
+                            }
+                        }
+                    }
+            } else {
+                // A fallback for the unlikely case that the user ID is unavailable.
+                // This state should not be reached in normal app flow.
+                ContentUnavailableView(
+                    "Cannot Load Requests",
+                    systemImage: "exclamationmark.triangle",
+                    description: Text("Could not retrieve your user information.")
+                )
                 .navigationTitle("My Requests")
-        } else {
-            // A fallback for the unlikely case that the user ID is unavailable.
-            // This state should not be reached in normal app flow.
-            ContentUnavailableView(
-                "Cannot Load Requests",
-                systemImage: "exclamationmark.triangle",
-                description: Text("Could not retrieve your user information.")
-            )
-            .navigationTitle("My Requests")
+            }
         }
     }
 }
@@ -59,19 +70,19 @@ private struct MyRequestsListView: View {
 
 private struct MyRequestsContentView: View {
     let requests: [SwipeRequest]
-    
+
     // Group requests by the start of the day
     private var groupedRequests: [Date: [SwipeRequest]] {
         Dictionary(grouping: requests) { request in
             Calendar.current.startOfDay(for: request.meetingTime.dateValue())
         }
     }
-    
+
     // Get the sorted list of days
     private var sortedDays: [Date] {
         groupedRequests.keys.sorted()
     }
-    
+
     var body: some View {
         Group {
             if requests.isEmpty {
@@ -113,7 +124,7 @@ private struct MyRequestsContentView: View {
             }
         }
     }
-    
+
     // Builds a single card for the request list.
     private func requestCard(for request: SwipeRequest) -> some View {
         HStack {
@@ -124,9 +135,9 @@ private struct MyRequestsContentView: View {
                     .font(.subheadline)
                     .foregroundColor(.secondary)
             }
-            
+
             Spacer()
-            
+
             statusPill(for: request.status)
         }
         .padding()
@@ -134,7 +145,7 @@ private struct MyRequestsContentView: View {
         .cornerRadius(12)
         .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
     }
-    
+
     // Creates a colored status indicator pill.
     private func statusPill(for status: RequestStatus) -> some View {
         Text(status.displayName)
@@ -145,7 +156,7 @@ private struct MyRequestsContentView: View {
             .foregroundColor(statusColor(for: status))
             .cornerRadius(8)
     }
-    
+
     // Determines the color for a given request status.
     private func statusColor(for status: RequestStatus) -> Color {
         switch status {
@@ -159,8 +170,18 @@ private struct MyRequestsContentView: View {
 }
 
 #Preview {
-    NavigationView {
+    NavigationStack {
         MyRequestsContentView(requests: SwipeRequest.mockRequests)
             .navigationTitle("My Requests")
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    NavigationLink {
+                        CreateSwipeRequestView(request: SwipeRequest())
+                    } label: {
+                        Image(systemName: "plus")
+                    }
+                }
+            }
     }
+    .environment(AuthenticationManager())
 }
