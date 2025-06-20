@@ -10,7 +10,7 @@ import SwiftUI
 struct AppView: View {
     @Environment(AuthenticationManager.self) var authManager
     @State private var selectedTab = 0
-    
+
     var body: some View {
         TabView(selection: $selectedTab) {
             // Home Tab
@@ -23,18 +23,18 @@ struct AppView: View {
                 Text("Home")
             }
             .tag(0)
-            
-            // Create Request Tab
+
+            // My Requests Tab
             NavigationStack {
-                CreateSwipeRequestView(request: SwipeRequest())
+                MyRequestsView()
                     .environment(authManager)
             }
             .tabItem {
-                Image(systemName: "plus.circle.fill")
-                Text("Create Request")
+                Image(systemName: "person.text.rectangle.fill")
+                Text("My Requests")
             }
             .tag(1)
-            
+
             // Open Requests Tab
             NavigationStack {
                 OpenRequestsView()
