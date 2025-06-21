@@ -26,6 +26,7 @@ struct MyRequestsView: View {
                     MyRequestsListView(
                         requesterId: userId, selectedRequest: $selectedRequest, animation: animation
                     )
+                    .padding(.top)
                     .toolbar {
                         if selectedRequest == nil {
                             ToolbarItem(placement: .navigationBarTrailing) {
@@ -34,6 +35,7 @@ struct MyRequestsView: View {
                                 } label: {
                                     Image(systemName: "plus")
                                 }
+                                .padding(.top)
                             }
                         }
 
@@ -51,6 +53,7 @@ struct MyRequestsView: View {
                                         .transition(.opacity)
                                 }
                             }
+                            .padding(.top)
                         }
                     }
 
