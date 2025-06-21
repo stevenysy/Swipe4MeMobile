@@ -13,10 +13,9 @@ import SwiftUI
 // and fetches the relevant requests from Firestore.
 struct MyRequestsView: View {
     @Environment(AuthenticationManager.self) private var authManager
-
+    
     @State private var selectedRequest: SwipeRequest?
-    @Namespace private var animation
-
+    
     var body: some View {
         NavigationStack {
             // Since MasterView ensures this view is only shown for authenticated users,
@@ -24,7 +23,7 @@ struct MyRequestsView: View {
             if let userId = authManager.user?.uid {
                 ZStack {
                     MyRequestsListView(
-                        requesterId: userId, selectedRequest: $selectedRequest, animation: animation
+                        requesterId: userId, selectedRequest: $selectedRequest
                     )
                     .padding(.top)
                     .blur(radius: selectedRequest != nil ? 20 : 0)  // Blur when a card is selected
@@ -39,25 +38,16 @@ struct MyRequestsView: View {
                                 .padding(.top)
                             }
                         }
-
+                        
                         ToolbarItem(placement: .navigationBarLeading) {
-                            ZStack {
-                                if selectedRequest == nil {
-                                    Text("My Requests")
-                                        .font(.largeTitle)
-                                        .fontWeight(.bold)
-                                        .transition(.opacity)
-                                } else {
-                                    Text("Request Details")
-                                        .font(.largeTitle)
-                                        .fontWeight(.bold)
-                                        .transition(.opacity)
-                                }
-                            }
-                            .padding(.top)
+                            Text("My Requests")
+                                .font(.largeTitle)
+                                .fontWeight(.bold)
+                            
+                                .padding(.top)
                         }
                     }
-
+                    
                     // Blur the background when a request is selected
                     if selectedRequest != nil {
                         Color.black.opacity(0.4)
@@ -68,14 +58,13 @@ struct MyRequestsView: View {
                                 }
                             }
                     }
-
+                    
                     if let selectedRequest {
-                        // The details view is now presented on top of the blurred list.
-                        MySwipeRequestDetailsView(
-                            request: selectedRequest,
-                            animation: animation,
-                            selectedRequest: $selectedRequest
-                        )
+                        SwipeRequestCardView(request: selectedRequest, isExpanded: true)
+                            .padding(30)
+                            .onTapGesture {
+                                // To prevent taps from passing through to the background overlay
+                            }
                     }
                 }
                 .animation(.spring(response: 0.45, dampingFraction: 0.75), value: selectedRequest)
@@ -91,7 +80,7 @@ struct MyRequestsView: View {
             }
         }
     }
-
+    
     // A computed property for the empty state view.
     // The @ViewBuilder is not strictly necessary here but is good practice.
     @ViewBuilder
@@ -108,12 +97,11 @@ struct MyRequestsView: View {
 // for a specific user.
 private struct MyRequestsListView: View {
     @FirestoreQuery var requests: [SwipeRequest]
-
+    
     @Binding var selectedRequest: SwipeRequest?
-    let animation: Namespace.ID
-
+    
     // Initializes the Firestore query to fetch requests for the given user ID.
-    init(requesterId: String, selectedRequest: Binding<SwipeRequest?>, animation: Namespace.ID) {
+    init(requesterId: String, selectedRequest: Binding<SwipeRequest?>) {
         // We initialize the query here because it depends on a dynamic value (requesterId).
         // The _requests syntax gives us access to the underlying FirestoreQuery
         // property wrapper so we can configure it when the view is created.
@@ -125,33 +113,31 @@ private struct MyRequestsListView: View {
             ]
         )
         self._selectedRequest = selectedRequest
-        self.animation = animation
     }
-
+    
     var body: some View {
         MyRequestsContentView(
-            requests: requests, selectedRequest: $selectedRequest, animation: animation)
+            requests: requests, selectedRequest: $selectedRequest)
     }
 }
 
 private struct MyRequestsContentView: View {
     let requests: [SwipeRequest]
-
+    
     @Binding var selectedRequest: SwipeRequest?
-    let animation: Namespace.ID
-
+    
     // Group requests by the start of the day
     private var groupedRequests: [Date: [SwipeRequest]] {
         Dictionary(grouping: requests) { request in
             Calendar.current.startOfDay(for: request.meetingTime.dateValue())
         }
     }
-
+    
     // Get the sorted list of days
     private var sortedDays: [Date] {
         groupedRequests.keys.sorted()
     }
-
+    
     var body: some View {
         Group {
             if requests.isEmpty {
@@ -165,7 +151,7 @@ private struct MyRequestsContentView: View {
             }
         }
     }
-
+    
     // A computed property for the scrollable list of requests.
     private var requestsListView: some View {
         ScrollView {
@@ -181,7 +167,7 @@ private struct MyRequestsContentView: View {
         .padding(.horizontal)
         .background(Color(.systemGroupedBackground))
     }
-
+    
     // A method to build a section for a specific day.
     private func daySectionView(for day: Date) -> some View {
         Section {
@@ -192,7 +178,7 @@ private struct MyRequestsContentView: View {
             daySectionHeader(for: day)
         }
     }
-
+    
     // A method to build the header for a day section.
     private func daySectionHeader(for day: Date) -> some View {
         Text(
@@ -204,13 +190,12 @@ private struct MyRequestsContentView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Color(.systemGroupedBackground))
     }
-
+    
     // A method to build the content (cards) for a day section.
     private func daySectionContent(for day: Date) -> some View {
         ForEach(groupedRequests[day] ?? []) { request in
             // Using the refactored card view
-            SwipeRequestCardView(request: request)
-                .matchedGeometryEffect(id: request.id, in: animation)
+            SwipeRequestCardView(request: request, isExpanded: false)
                 .opacity(selectedRequest?.id == request.id ? 0 : 1)
                 .onTapGesture {
                     withAnimation(.spring(response: 0.45, dampingFraction: 0.75)) {
@@ -225,17 +210,15 @@ private struct MyRequestsContentView: View {
     // We create a wrapper to provide the necessary state for the preview.
     struct PreviewWrapper: View {
         @State private var selectedRequest: SwipeRequest?
-        @Namespace private var animation
-
+        
         var body: some View {
             MyRequestsContentView(
                 requests: SwipeRequest.mockRequests,
-                selectedRequest: $selectedRequest,
-                animation: animation
+                selectedRequest: $selectedRequest
             )
         }
     }
-
+    
     return NavigationStack {
         PreviewWrapper()
     }
