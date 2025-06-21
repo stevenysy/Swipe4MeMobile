@@ -58,6 +58,9 @@ struct MasterView: View {
         .onChange(of: authManager.errorMessage) {
             showAlert = !authManager.errorMessage.isEmpty
         }
+        .onChange(of: SwipeRequestManager.shared.errorMessage) {
+            showAlert = !SwipeRequestManager.shared.errorMessage.isEmpty
+        }
         .alert(isPresented: $showAlert) {
             Alert(title: Text("Error"), message: Text(authManager.errorMessage), dismissButton: .default(Text("OK")) {authManager.errorMessage = ""})
         }
