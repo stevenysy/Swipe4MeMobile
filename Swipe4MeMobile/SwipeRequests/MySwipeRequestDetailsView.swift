@@ -13,42 +13,85 @@ struct MySwipeRequestDetailsView: View {
     @Binding var selectedRequest: SwipeRequest?
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 0) {
-                // This is the anchor for our animation. It looks identical to the
-                // card in the list, and the matchedGeometryEffect will animate
-                // the transition from the list to this position.
-                SwipeRequestCardView(request: request)
-                    .matchedGeometryEffect(id: request.id, in: animation)
-                    .onTapGesture {
-                        dismiss()
+        VStack {
+            VStack(alignment: .leading, spacing: 16) {
+                // Header (styled to match SwipeRequestCardView)
+                HStack {
+                    VStack(alignment: .leading, spacing: 5) {
+                        Text(request.location.rawValue)
+                            .font(.headline)
+                        Text("Meeting at: \(request.meetingTime.dateValue(), style: .time)")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
                     }
 
-                // Additional details that appear on expansion
-                VStack(alignment: .leading, spacing: 20) {
-                    Text("Additional Details")
-                        .font(.title2.bold())
-                        .padding(.top)
+                    Spacer()
 
-                    Label("Requester: You", systemImage: "person.fill")
-                    Label("Offer: 1 Meal Swipe", systemImage: "gift.fill")
-                    Label("Status: \(request.status.displayName)", systemImage: "info.circle.fill")
+                    statusPill(for: request.status)
                 }
-                .padding()
-                .frame(maxWidth: .infinity, alignment: .leading)
+
+                Divider()
+
+                Text("Additional Details")
+                    .font(.headline)
+
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        Text("Swiper:")
+                            .fontWeight(.semibold)
+                        Spacer()
+                        Text(request.swiperId.isEmpty ? "Not assigned" : request.swiperId)
+                    }
+
+                    HStack {
+                        Text("Created:")
+                            .fontWeight(.semibold)
+                        Spacer()
+                        Text(request.createdAt.dateValue(), style: .relative)
+                    }
+                }
+                .font(.body)
+
+                Button("Edit Request") {
+                    onEdit(request)
+                }
+                .buttonStyle(.borderedProminent)
+                .frame(maxWidth: .infinity)
             }
-            .padding(.top, 50)
+            .padding()
+            .background(Color(.secondarySystemGroupedBackground))
+            .cornerRadius(12)
+            .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
+            .matchedGeometryEffect(id: request.id, in: animation)
         }
-        .padding(.horizontal)
-        .background(Color(.systemGroupedBackground).ignoresSafeArea())
-        .onTapGesture {  // Tap background to dismiss
-            dismiss()
+        .padding(30)  // This padding centers the card and stops it from filling the screen
+        .onTapGesture {
+            // To prevent taps from passing through to the background overlay
         }
     }
 
-    private func dismiss() {
-        withAnimation(.spring(response: 0.45, dampingFraction: 0.75)) {
-            selectedRequest = nil
+    private func onEdit(_ request: SwipeRequest) {
+        print("editing swipe request with id \(String(describing: request.id))")
+    }
+
+    // Copied from SwipeRequestCardView to ensure visual consistency
+    private func statusPill(for status: RequestStatus) -> some View {
+        Text(status.displayName)
+            .font(.caption.bold())
+            .padding(.horizontal, 10)
+            .padding(.vertical, 5)
+            .background(statusColor(for: status).opacity(0.15))
+            .foregroundColor(statusColor(for: status))
+            .cornerRadius(8)
+    }
+
+    private func statusColor(for status: RequestStatus) -> Color {
+        switch status {
+        case .open: .green
+        case .inProgress: .blue
+        case .awaitingReview: .orange
+        case .complete: .purple
+        case .canceled: .red
         }
     }
 }
@@ -63,16 +106,19 @@ struct MySwipeRequestDetailsView: View {
         @State private var selectedRequest: SwipeRequest? = SwipeRequest.mockRequests.first
 
         var body: some View {
-            // We show the detail view only if a request is selected.
-            if let request = selectedRequest {
-                MySwipeRequestDetailsView(
-                    request: request,
-                    animation: animation,
-                    selectedRequest: $selectedRequest
-                )
-            } else {
-                // This will show if you dismiss the detail view in the preview.
-                Text("No request selected.")
+            ZStack {
+                Color.gray.opacity(0.2).ignoresSafeArea()
+                // We show the detail view only if a request is selected.
+                if let request = selectedRequest {
+                    MySwipeRequestDetailsView(
+                        request: request,
+                        animation: animation,
+                        selectedRequest: $selectedRequest
+                    )
+                } else {
+                    // This will show if you dismiss the detail view in the preview.
+                    Text("No request selected.")
+                }
             }
         }
     }

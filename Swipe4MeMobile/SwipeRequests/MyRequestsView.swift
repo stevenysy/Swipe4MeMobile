@@ -27,6 +27,7 @@ struct MyRequestsView: View {
                         requesterId: userId, selectedRequest: $selectedRequest, animation: animation
                     )
                     .padding(.top)
+                    .blur(radius: selectedRequest != nil ? 20 : 0)  // Blur when a card is selected
                     .toolbar {
                         if selectedRequest == nil {
                             ToolbarItem(placement: .navigationBarTrailing) {
@@ -57,7 +58,19 @@ struct MyRequestsView: View {
                         }
                     }
 
+                    // Blur the background when a request is selected
+                    if selectedRequest != nil {
+                        Color.black.opacity(0.4)
+                            .ignoresSafeArea()
+                            .onTapGesture {
+                                withAnimation(.spring(response: 0.45, dampingFraction: 0.75)) {
+                                    selectedRequest = nil
+                                }
+                            }
+                    }
+
                     if let selectedRequest {
+                        // The details view is now presented on top of the blurred list.
                         MySwipeRequestDetailsView(
                             request: selectedRequest,
                             animation: animation,
@@ -65,6 +78,7 @@ struct MyRequestsView: View {
                         )
                     }
                 }
+                .animation(.spring(response: 0.45, dampingFraction: 0.75), value: selectedRequest)
             } else {
                 // A fallback for the unlikely case that the user ID is unavailable.
                 // This state should not be reached in normal app flow.
@@ -197,7 +211,7 @@ private struct MyRequestsContentView: View {
             // Using the refactored card view
             SwipeRequestCardView(request: request)
                 .matchedGeometryEffect(id: request.id, in: animation)
-                .opacity(self.selectedRequest?.id == request.id ? 0 : 1)
+                .opacity(selectedRequest?.id == request.id ? 0 : 1)
                 .onTapGesture {
                     withAnimation(.spring(response: 0.45, dampingFraction: 0.75)) {
                         self.selectedRequest = request
