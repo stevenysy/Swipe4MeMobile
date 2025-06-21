@@ -14,22 +14,54 @@ import SwiftUI
 struct MyRequestsView: View {
     @Environment(AuthenticationManager.self) private var authManager
 
+    @State private var selectedRequest: SwipeRequest?
+    @Namespace private var animation
+
     var body: some View {
         NavigationStack {
             // Since MasterView ensures this view is only shown for authenticated users,
             // we can safely access the user's ID.
             if let userId = authManager.user?.uid {
-                MyRequestsListView(requesterId: userId)
-                    .navigationTitle("My Requests")
+                ZStack {
+                    MyRequestsListView(
+                        requesterId: userId, selectedRequest: $selectedRequest, animation: animation
+                    )
                     .toolbar {
-                        ToolbarItem(placement: .navigationBarTrailing) {
-                            NavigationLink {
-                                CreateSwipeRequestView(request: SwipeRequest())
-                            } label: {
-                                Image(systemName: "plus")
+                        if selectedRequest == nil {
+                            ToolbarItem(placement: .navigationBarTrailing) {
+                                NavigationLink {
+                                    CreateSwipeRequestView(request: SwipeRequest())
+                                } label: {
+                                    Image(systemName: "plus")
+                                }
+                            }
+                        }
+
+                        ToolbarItem(placement: .navigationBarLeading) {
+                            ZStack {
+                                if selectedRequest == nil {
+                                    Text("My Requests")
+                                        .font(.largeTitle)
+                                        .fontWeight(.bold)
+                                        .transition(.opacity)
+                                } else {
+                                    Text("Request Details")
+                                        .font(.largeTitle)
+                                        .fontWeight(.bold)
+                                        .transition(.opacity)
+                                }
                             }
                         }
                     }
+
+                    if let selectedRequest {
+                        MySwipeRequestDetailsView(
+                            request: selectedRequest,
+                            animation: animation,
+                            selectedRequest: $selectedRequest
+                        )
+                    }
+                }
             } else {
                 // A fallback for the unlikely case that the user ID is unavailable.
                 // This state should not be reached in normal app flow.
@@ -60,8 +92,11 @@ struct MyRequestsView: View {
 private struct MyRequestsListView: View {
     @FirestoreQuery var requests: [SwipeRequest]
 
+    @Binding var selectedRequest: SwipeRequest?
+    let animation: Namespace.ID
+
     // Initializes the Firestore query to fetch requests for the given user ID.
-    init(requesterId: String) {
+    init(requesterId: String, selectedRequest: Binding<SwipeRequest?>, animation: Namespace.ID) {
         // We initialize the query here because it depends on a dynamic value (requesterId).
         // The _requests syntax gives us access to the underlying FirestoreQuery
         // property wrapper so we can configure it when the view is created.
@@ -72,15 +107,21 @@ private struct MyRequestsListView: View {
                 .order(by: "meetingTime", descending: false),
             ]
         )
+        self._selectedRequest = selectedRequest
+        self.animation = animation
     }
 
     var body: some View {
-        MyRequestsContentView(requests: requests)
+        MyRequestsContentView(
+            requests: requests, selectedRequest: $selectedRequest, animation: animation)
     }
 }
 
 private struct MyRequestsContentView: View {
     let requests: [SwipeRequest]
+
+    @Binding var selectedRequest: SwipeRequest?
+    let animation: Namespace.ID
 
     // Group requests by the start of the day
     private var groupedRequests: [Date: [SwipeRequest]] {
@@ -152,13 +193,34 @@ private struct MyRequestsContentView: View {
         ForEach(groupedRequests[day] ?? []) { request in
             // Using the refactored card view
             SwipeRequestCardView(request: request)
+                .matchedGeometryEffect(id: request.id, in: animation)
+                .opacity(self.selectedRequest?.id == request.id ? 0 : 1)
+                .onTapGesture {
+                    withAnimation(.spring(response: 0.45, dampingFraction: 0.75)) {
+                        self.selectedRequest = request
+                    }
+                }
         }
     }
 }
 
 #Preview {
-    NavigationStack {
-        MyRequestsContentView(requests: SwipeRequest.mockRequests)
+    // We create a wrapper to provide the necessary state for the preview.
+    struct PreviewWrapper: View {
+        @State private var selectedRequest: SwipeRequest?
+        @Namespace private var animation
+
+        var body: some View {
+            MyRequestsContentView(
+                requests: SwipeRequest.mockRequests,
+                selectedRequest: $selectedRequest,
+                animation: animation
+            )
+        }
+    }
+
+    return NavigationStack {
+        PreviewWrapper()
     }
     .environment(AuthenticationManager())
 }
