@@ -13,7 +13,7 @@ import SwiftUI
 // and fetches the relevant requests from Firestore.
 struct MyRequestsView: View {
     @Environment(AuthenticationManager.self) private var authManager
-    
+
     var body: some View {
         NavigationStack {
             // Since MasterView ensures this view is only shown for authenticated users,
@@ -42,7 +42,7 @@ struct MyRequestsView: View {
             }
         }
     }
-    
+
     // A computed property for the empty state view.
     // The @ViewBuilder is not strictly necessary here but is good practice.
     @ViewBuilder
@@ -59,7 +59,7 @@ struct MyRequestsView: View {
 // for a specific user.
 private struct MyRequestsListView: View {
     @FirestoreQuery var requests: [SwipeRequest]
-    
+
     // Initializes the Firestore query to fetch requests for the given user ID.
     init(requesterId: String) {
         // We initialize the query here because it depends on a dynamic value (requesterId).
@@ -73,7 +73,7 @@ private struct MyRequestsListView: View {
             ]
         )
     }
-    
+
     var body: some View {
         MyRequestsContentView(requests: requests)
     }
@@ -81,19 +81,19 @@ private struct MyRequestsListView: View {
 
 private struct MyRequestsContentView: View {
     let requests: [SwipeRequest]
-    
+
     // Group requests by the start of the day
     private var groupedRequests: [Date: [SwipeRequest]] {
         Dictionary(grouping: requests) { request in
             Calendar.current.startOfDay(for: request.meetingTime.dateValue())
         }
     }
-    
+
     // Get the sorted list of days
     private var sortedDays: [Date] {
         groupedRequests.keys.sorted()
     }
-    
+
     var body: some View {
         Group {
             if requests.isEmpty {
@@ -107,7 +107,7 @@ private struct MyRequestsContentView: View {
             }
         }
     }
-    
+
     // A computed property for the scrollable list of requests.
     private var requestsListView: some View {
         ScrollView {
@@ -123,7 +123,7 @@ private struct MyRequestsContentView: View {
         .padding(.horizontal)
         .background(Color(.systemGroupedBackground))
     }
-    
+
     // A method to build a section for a specific day.
     private func daySectionView(for day: Date) -> some View {
         Section {
@@ -134,7 +134,7 @@ private struct MyRequestsContentView: View {
             daySectionHeader(for: day)
         }
     }
-    
+
     // A method to build the header for a day section.
     private func daySectionHeader(for day: Date) -> some View {
         Text(
@@ -146,15 +146,12 @@ private struct MyRequestsContentView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Color(.systemGroupedBackground))
     }
-    
+
     // A method to build the content (cards) for a day section.
     private func daySectionContent(for day: Date) -> some View {
-        // A VStack to arrange the cards vertically
-        VStack(spacing: 12) {
-            ForEach(groupedRequests[day] ?? []) { request in
-                // Using the refactored card view
-                SwipeRequestCardView(request: request)
-            }
+        ForEach(groupedRequests[day] ?? []) { request in
+            // Using the refactored card view
+            SwipeRequestCardView(request: request)
         }
     }
 }

@@ -30,8 +30,6 @@ struct CreateSwipeRequestView: View {
 
             Section {
                 HStack {
-                    Text("Meeting Time")
-                    Spacer()
                     DatePicker("Meeting Time", selection: $selectedTime, in: Date()...)
                 }
                 .frame(height: 50)
