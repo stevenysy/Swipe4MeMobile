@@ -9,6 +9,7 @@ import SwiftUI
 
 struct MasterView: View {
     @State private var authManager = AuthenticationManager()
+    @State private var snackbarManager = SnackbarManager()
     @State private var showAlert = false
     @State private var showSignInView = false
 
@@ -22,38 +23,40 @@ struct MasterView: View {
             case .unauthenticated:
                 LoginView()
                     .environment(authManager)
-//                    .task {
-//                        do {
-//                            try await Task.sleep(nanoseconds: 2_000_000_000)
-//                            UserManager.shared.clearCurrentUser()
-//                        } catch {
-//                            print("Error \(error.localizedDescription)")
-//                        }
-//                    }
+            //                    .task {
+            //                        do {
+            //                            try await Task.sleep(nanoseconds: 2_000_000_000)
+            //                            UserManager.shared.clearCurrentUser()
+            //                        } catch {
+            //                            print("Error \(error.localizedDescription)")
+            //                        }
+            //                    }
 
             case .authenticated:
-//                switch UserManager.shared.authenticationViewState {
-//                case .loading:
-//                    ProgressView()
-//                        .task {
-//                            await UserManager.shared.fetchUser()
-//                            UserManager.shared.startListeningForUserChanges()
-//                        }
-//                case .userOnBoarding:
-//                    UserOnboardingView()
-//                        .environment(authManager)
-//                case .home:
-//                    AppView()
-//                        .environment(authManager)
-//                        .task {
-//                            await UserManager.shared.fetchUser()
-//                            UserManager.shared.startListeningForUserChanges()
-//                        }
-//                }
+                //                switch UserManager.shared.authenticationViewState {
+                //                case .loading:
+                //                    ProgressView()
+                //                        .task {
+                //                            await UserManager.shared.fetchUser()
+                //                            UserManager.shared.startListeningForUserChanges()
+                //                        }
+                //                case .userOnBoarding:
+                //                    UserOnboardingView()
+                //                        .environment(authManager)
+                //                case .home:
+                //                    AppView()
+                //                        .environment(authManager)
+                //                        .task {
+                //                            await UserManager.shared.fetchUser()
+                //                            UserManager.shared.startListeningForUserChanges()
+                //                        }
+                //                }
                 AppView()
                     .environment(authManager)
             }
         }
+        .snackbar(manager: snackbarManager)
+        .environment(snackbarManager)
         .animation(.default, value: authManager.authState)
         .onChange(of: authManager.errorMessage) {
             showAlert = !authManager.errorMessage.isEmpty
@@ -62,7 +65,9 @@ struct MasterView: View {
             showAlert = !SwipeRequestManager.shared.errorMessage.isEmpty
         }
         .alert(isPresented: $showAlert) {
-            Alert(title: Text("Error"), message: Text(authManager.errorMessage), dismissButton: .default(Text("OK")) {authManager.errorMessage = ""})
+            Alert(
+                title: Text("Error"), message: Text(authManager.errorMessage),
+                dismissButton: .default(Text("OK")) { authManager.errorMessage = "" })
         }
     }
 }

@@ -13,6 +13,7 @@ import SwiftUI
 // and fetches the relevant requests from Firestore.
 struct MyRequestsView: View {
     @Environment(AuthenticationManager.self) private var authManager
+    @Environment(SnackbarManager.self) private var snackbarManager
 
     @State private var selectedRequest: SwipeRequest?
     @State private var requestToDelete: SwipeRequest?
@@ -63,6 +64,7 @@ struct MyRequestsView: View {
             Button("Delete", role: .destructive) {
                 if let requestToDelete = requestToDelete {
                     SwipeRequestManager.shared.deleteRequest(requestToDelete)
+                    snackbarManager.show(title: "Request Deleted", style: .success)
                 }
                 self.requestToDelete = nil
             }
