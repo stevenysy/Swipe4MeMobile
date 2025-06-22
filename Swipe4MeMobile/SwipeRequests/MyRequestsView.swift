@@ -15,6 +15,7 @@ struct MyRequestsView: View {
     @Environment(AuthenticationManager.self) private var authManager
 
     @State private var selectedRequest: SwipeRequest?
+    @State private var requestToDelete: SwipeRequest?
 
     var body: some View {
         NavigationStack {
@@ -22,7 +23,8 @@ struct MyRequestsView: View {
             // we can safely access the user's ID.
             if let userId = authManager.user?.uid {
                 MyRequestsListView(
-                    requesterId: userId, selectedRequest: $selectedRequest
+                    requesterId: userId, selectedRequest: $selectedRequest,
+                    requestToDelete: $requestToDelete
                 )
                 .padding(.top)
                 .toolbar {
@@ -54,6 +56,24 @@ struct MyRequestsView: View {
                 .navigationTitle("My Requests")
             }
         }
+        .alert(
+            "Delete Request", isPresented: .constant(requestToDelete != nil),
+            presenting: requestToDelete
+        ) { request in
+            Button("Delete", role: .destructive) {
+                if let requestToDelete = requestToDelete {
+                    SwipeRequestManager.shared.deleteRequest(requestToDelete)
+                }
+                self.requestToDelete = nil
+            }
+            Button("Cancel", role: .cancel) {
+                self.requestToDelete = nil
+            }
+        } message: { request in
+            Text(
+                "Are you sure you want to delete this swipe request for \(request.location.rawValue) at \(request.meetingTime.dateValue(), style: .time)? This action cannot be undone."
+            )
+        }
     }
 
     // A computed property for the empty state view.
@@ -74,9 +94,13 @@ private struct MyRequestsListView: View {
     @FirestoreQuery var requests: [SwipeRequest]
 
     @Binding var selectedRequest: SwipeRequest?
+    @Binding var requestToDelete: SwipeRequest?
 
     // Initializes the Firestore query to fetch requests for the given user ID.
-    init(requesterId: String, selectedRequest: Binding<SwipeRequest?>) {
+    init(
+        requesterId: String, selectedRequest: Binding<SwipeRequest?>,
+        requestToDelete: Binding<SwipeRequest?>
+    ) {
         // We initialize the query here because it depends on a dynamic value (requesterId).
         // The _requests syntax gives us access to the underlying FirestoreQuery
         // property wrapper so we can configure it when the view is created.
@@ -88,11 +112,13 @@ private struct MyRequestsListView: View {
             ]
         )
         self._selectedRequest = selectedRequest
+        self._requestToDelete = requestToDelete
     }
 
     var body: some View {
         MyRequestsContentView(
-            requests: requests, selectedRequest: $selectedRequest)
+            requests: requests, selectedRequest: $selectedRequest, requestToDelete: $requestToDelete
+        )
     }
 }
 
@@ -100,6 +126,7 @@ private struct MyRequestsContentView: View {
     let requests: [SwipeRequest]
 
     @Binding var selectedRequest: SwipeRequest?
+    @Binding var requestToDelete: SwipeRequest?
 
     // Group requests by the start of the day
     private var groupedRequests: [Date: [SwipeRequest]] {
@@ -173,7 +200,10 @@ private struct MyRequestsContentView: View {
             // Using the refactored card view
             SwipeRequestCardView(
                 request: request,
-                isExpanded: selectedRequest?.id == request.id
+                isExpanded: selectedRequest?.id == request.id,
+                onDelete: {
+                    self.requestToDelete = request
+                }
             )
             .onTapGesture {
                 withAnimation(.spring(response: 0.45, dampingFraction: 0.75)) {
@@ -192,11 +222,13 @@ private struct MyRequestsContentView: View {
     // We create a wrapper to provide the necessary state for the preview.
     struct PreviewWrapper: View {
         @State private var selectedRequest: SwipeRequest?
+        @State private var requestToDelete: SwipeRequest?
 
         var body: some View {
             MyRequestsContentView(
                 requests: SwipeRequest.mockRequests,
-                selectedRequest: $selectedRequest
+                selectedRequest: $selectedRequest,
+                requestToDelete: $requestToDelete
             )
         }
     }

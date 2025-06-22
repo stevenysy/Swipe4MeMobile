@@ -10,6 +10,7 @@ import SwiftUI
 struct SwipeRequestCardView: View {
     let request: SwipeRequest
     var isExpanded: Bool = false
+    var onDelete: () -> Void = {}
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -58,7 +59,7 @@ struct SwipeRequestCardView: View {
                     .frame(maxWidth: .infinity)
 
                     Button("Delete", role: .destructive) {
-                        handleDelete()
+                        onDelete()
                     }
                     .buttonStyle(.bordered)
                     .frame(maxWidth: .infinity)
@@ -77,7 +78,7 @@ struct SwipeRequestCardView: View {
 
     private func handleDelete() {
         print("deleting swipe request with id \(String(describing: request.id))")
-        SwipeRequestManager.shared.deleteRequest(self.request)
+        onDelete()
     }
 
     private func statusPill(for status: RequestStatus) -> some View {
@@ -105,7 +106,11 @@ struct SwipeRequestCardView: View {
     VStack(spacing: 20) {
         if let request = SwipeRequest.mockRequests.first {
             SwipeRequestCardView(request: request, isExpanded: false)
-            SwipeRequestCardView(request: request, isExpanded: true)
+            SwipeRequestCardView(
+                request: request, isExpanded: true,
+                onDelete: {
+                    print("Delete action triggered for request: \(request.id ?? "N/A")")
+                })
         }
     }
     .padding()
