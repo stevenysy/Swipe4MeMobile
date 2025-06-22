@@ -50,11 +50,19 @@ struct SwipeRequestCardView: View {
                 }
                 .font(.body)
 
-                Button("Edit Request") {
-                    onEdit(request)
+                HStack {
+                    Button("Edit") {
+                        handleEdit(request)
+                    }
+                    .buttonStyle(.bordered)
+                    .frame(maxWidth: .infinity)
+
+                    Button("Delete", role: .destructive) {
+                        handleDelete(request)
+                    }
+                    .buttonStyle(.bordered)
+                    .frame(maxWidth: .infinity)
                 }
-                .buttonStyle(.borderedProminent)
-                .frame(maxWidth: .infinity)
             }
         }
         .padding()
@@ -63,8 +71,12 @@ struct SwipeRequestCardView: View {
         .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
     }
 
-    private func onEdit(_ request: SwipeRequest) {
+    private func handleEdit(_ request: SwipeRequest) {
         print("editing swipe request with id \(String(describing: request.id))")
+    }
+
+    private func handleDelete(_ request: SwipeRequest) {
+        print("deleting swipe request with id \(String(describing: request.id))")
     }
 
     private func statusPill(for status: RequestStatus) -> some View {
