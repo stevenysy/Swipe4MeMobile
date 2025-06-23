@@ -205,6 +205,11 @@ private struct MyRequestsContentView: View {
                 isExpanded: selectedRequest?.id == request.id,
                 onDelete: {
                     self.requestToDelete = request
+                },
+                onEdit: {
+                    withAnimation(.spring(response: 0.45, dampingFraction: 0.75)) {
+                        self.selectedRequest = nil
+                    }
                 }
             )
             .onTapGesture {

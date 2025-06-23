@@ -5,12 +5,19 @@
 //  Created by stevenysy on 6/19/25.
 //
 
+import FirebaseFirestore
 import SwiftUI
 
 struct SwipeRequestCardView: View {
     let request: SwipeRequest
     var isExpanded: Bool = false
     var onDelete: () -> Void = {}
+    var onEdit: () -> Void = {}
+
+    @Environment(SnackbarManager.self) private var snackbarManager
+    @State private var isEditing = false
+    @State private var editedLocation: DiningLocation = .commons  // Default, updated on edit
+    @State private var editedMeetingTime = Date()
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -29,40 +36,10 @@ struct SwipeRequestCardView: View {
             }
 
             if isExpanded {
-                Divider()
-
-                Text("Additional Details")
-                    .font(.headline)
-
-                VStack(alignment: .leading, spacing: 8) {
-                    HStack {
-                        Text("Swiper:")
-                            .fontWeight(.semibold)
-                        Spacer()
-                        Text(request.swiperId.isEmpty ? "Not assigned" : request.swiperId)
-                    }
-
-                    HStack {
-                        Text("Created:")
-                            .fontWeight(.semibold)
-                        Spacer()
-                        Text(request.createdAt.dateValue(), style: .relative)
-                    }
-                }
-                .font(.body)
-
-                HStack {
-                    Button("Edit") {
-                        handleEdit()
-                    }
-                    .buttonStyle(.bordered)
-                    .frame(maxWidth: .infinity)
-
-                    Button("Delete", role: .destructive) {
-                        onDelete()
-                    }
-                    .buttonStyle(.bordered)
-                    .frame(maxWidth: .infinity)
+                if isEditing {
+                    editStateView
+                } else {
+                    readOnlyStateView
                 }
             }
         }
@@ -73,12 +50,110 @@ struct SwipeRequestCardView: View {
     }
 
     private func handleEdit() {
-        print("editing swipe request with id \(String(describing: self.request.id))")
+        editedLocation = request.location
+        editedMeetingTime = request.meetingTime.dateValue()
+        withAnimation(.spring(response: 0.45, dampingFraction: 0.75)) {
+            isEditing = true
+        }
+    }
+
+    private func handleSubmit() {
+        var updatedRequest = request
+        updatedRequest.location = editedLocation
+        updatedRequest.meetingTime = Timestamp(date: editedMeetingTime)
+
+        SwipeRequestManager.shared.addSwipeRequestToDatabase(
+            swipeRequest: updatedRequest, isEdit: true)
+        snackbarManager.show(title: "Request Updated", style: .success)
+        withAnimation(.spring(response: 0.45, dampingFraction: 0.75)) {
+            isEditing = false
+        }
+        onEdit()
     }
 
     private func handleDelete() {
         print("deleting swipe request with id \(String(describing: request.id))")
         onDelete()
+    }
+
+    @ViewBuilder
+    private var readOnlyStateView: some View {
+        Divider()
+
+        Text("Additional Details")
+            .font(.headline)
+
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text("Swiper:")
+                    .fontWeight(.semibold)
+                Spacer()
+                Text(request.swiperId.isEmpty ? "Not assigned" : request.swiperId)
+            }
+
+            HStack {
+                Text("Created:")
+                    .fontWeight(.semibold)
+                Spacer()
+                Text(request.createdAt.dateValue(), style: .relative)
+            }
+        }
+        .font(.body)
+
+        HStack {
+            Button("Edit") {
+                handleEdit()
+            }
+            .buttonStyle(.bordered)
+            .frame(maxWidth: .infinity)
+
+            Button("Delete", role: .destructive) {
+                onDelete()
+            }
+            .buttonStyle(.bordered)
+            .frame(maxWidth: .infinity)
+        }
+    }
+
+    @ViewBuilder
+    private var editStateView: some View {
+        Divider()
+
+        VStack(alignment: .leading, spacing: 16) {
+            HStack {
+                Text("Location")
+                Spacer()
+                Picker("", selection: $editedLocation) {
+                    ForEach(DiningLocation.allCases) { location in
+                        Text(location.rawValue).tag(location)
+                    }
+                }
+            }
+            .pickerStyle(.menu)
+
+            DatePicker(
+                "Meeting Time",
+                selection: $editedMeetingTime,
+                in: Date()...
+            )
+        }
+        .fontWeight(.semibold)
+
+        HStack {
+            Button("Cancel", role: .cancel) {
+                withAnimation(.spring(response: 0.45, dampingFraction: 0.75)) {
+                    isEditing = false
+                }
+            }
+            .buttonStyle(.bordered)
+            .frame(maxWidth: .infinity)
+
+            Button("Submit") {
+                handleSubmit()
+            }
+            .buttonStyle(.borderedProminent)
+            .frame(maxWidth: .infinity)
+        }
     }
 
     private func statusPill(for status: RequestStatus) -> some View {
@@ -110,9 +185,13 @@ struct SwipeRequestCardView: View {
                 request: request, isExpanded: true,
                 onDelete: {
                     print("Delete action triggered for request: \(request.id ?? "N/A")")
+                },
+                onEdit: {
+                    print("Edit submitted for request: \(request.id ?? "N/A")")
                 })
         }
     }
     .padding()
     .background(Color(.systemGroupedBackground))
+    .environment(SnackbarManager())
 }
