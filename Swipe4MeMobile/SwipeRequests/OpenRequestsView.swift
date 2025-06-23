@@ -18,23 +18,42 @@ struct OpenRequestsView: View {
         ],
         animation: .default
     ) var requests: [SwipeRequest]
+    @State private var expandedRequestId: String?
     
     var body: some View {
-        Text("Open Requests")
-        
-        if requests.isEmpty {
-            Text("No requests found")
-                .foregroundColor(.gray)
-        }
-        
-        List {
-            ForEach(requests, id: \.id) { request in
-                VStack(alignment: .leading) {
-                    Text("Meeting Time: \(request.meetingTime.dateValue().formatted())")
-                    Text("Location: \(request.location)")
-                    // Add more request details as needed
+        VStack {
+            Text("Open Requests")
+                .font(.largeTitle.bold())
+                .padding()
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+            if requests.isEmpty {
+                Spacer()
+                Text("No requests found")
+                    .foregroundColor(.gray)
+                Spacer()
+            } else {
+                ScrollView {
+                    LazyVStack(spacing: 16) {
+                        ForEach(requests) { request in
+                            OpenRequestCardView(
+                                request: request,
+                                isExpanded: expandedRequestId == request.id
+                            )
+                            .onTapGesture {
+                                withAnimation(.spring(response: 0.45, dampingFraction: 0.75)) {
+                                    if expandedRequestId == request.id {
+                                        expandedRequestId = nil
+                                    } else {
+                                        expandedRequestId = request.id
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    .padding(.horizontal)
                 }
-                .padding(.vertical, 8)
+                .animation(.spring(response: 0.45, dampingFraction: 0.75), value: expandedRequestId)
             }
         }
     }
