@@ -13,23 +13,39 @@ import SwiftUI
 // and fetches the relevant requests from Firestore.
 struct MyRequestsView: View {
     @Environment(AuthenticationManager.self) private var authManager
+    @Environment(SnackbarManager.self) private var snackbarManager
+
+    @State private var selectedRequest: SwipeRequest?
+    @State private var requestToDelete: SwipeRequest?
 
     var body: some View {
         NavigationStack {
             // Since MasterView ensures this view is only shown for authenticated users,
             // we can safely access the user's ID.
             if let userId = authManager.user?.uid {
-                MyRequestsListView(requesterId: userId)
-                    .navigationTitle("My Requests")
-                    .toolbar {
-                        ToolbarItem(placement: .navigationBarTrailing) {
-                            NavigationLink {
-                                CreateSwipeRequestView(request: SwipeRequest())
-                            } label: {
-                                Image(systemName: "plus")
-                            }
+                MyRequestsListView(
+                    requesterId: userId, selectedRequest: $selectedRequest,
+                    requestToDelete: $requestToDelete
+                )
+                .padding(.top)
+                .toolbar {
+                    ToolbarItem(placement: .navigationBarTrailing) {
+                        NavigationLink {
+                            CreateSwipeRequestView(request: SwipeRequest())
+                        } label: {
+                            Image(systemName: "plus")
                         }
+                        .padding(.top)
                     }
+
+                    ToolbarItem(placement: .navigationBarLeading) {
+                        Text("My Requests")
+                            .font(.largeTitle)
+                            .fontWeight(.bold)
+
+                            .padding(.top)
+                    }
+                }
             } else {
                 // A fallback for the unlikely case that the user ID is unavailable.
                 // This state should not be reached in normal app flow.
@@ -41,6 +57,36 @@ struct MyRequestsView: View {
                 .navigationTitle("My Requests")
             }
         }
+        .alert(
+            "Delete Request", isPresented: .constant(requestToDelete != nil),
+            presenting: requestToDelete
+        ) { request in
+            Button("Delete", role: .destructive) {
+                if let requestToDelete = requestToDelete {
+                    SwipeRequestManager.shared.deleteRequest(requestToDelete)
+                    snackbarManager.show(title: "Request Deleted", style: .success)
+                }
+                self.requestToDelete = nil
+            }
+            Button("Cancel", role: .cancel) {
+                self.requestToDelete = nil
+            }
+        } message: { request in
+            Text(
+                "Are you sure you want to delete this swipe request for \(request.location.rawValue) at \(request.meetingTime.dateValue(), style: .time)? This action cannot be undone."
+            )
+        }
+    }
+
+    // A computed property for the empty state view.
+    // The @ViewBuilder is not strictly necessary here but is good practice.
+    @ViewBuilder
+    private var emptyStateView: some View {
+        ContentUnavailableView(
+            "No Requests Found",
+            systemImage: "doc.text.magnifyingglass",
+            description: Text("You haven't made any swipe requests yet.")
+        )
     }
 }
 
@@ -49,8 +95,14 @@ struct MyRequestsView: View {
 private struct MyRequestsListView: View {
     @FirestoreQuery var requests: [SwipeRequest]
 
+    @Binding var selectedRequest: SwipeRequest?
+    @Binding var requestToDelete: SwipeRequest?
+
     // Initializes the Firestore query to fetch requests for the given user ID.
-    init(requesterId: String) {
+    init(
+        requesterId: String, selectedRequest: Binding<SwipeRequest?>,
+        requestToDelete: Binding<SwipeRequest?>
+    ) {
         // We initialize the query here because it depends on a dynamic value (requesterId).
         // The _requests syntax gives us access to the underlying FirestoreQuery
         // property wrapper so we can configure it when the view is created.
@@ -61,15 +113,22 @@ private struct MyRequestsListView: View {
                 .order(by: "meetingTime", descending: false),
             ]
         )
+        self._selectedRequest = selectedRequest
+        self._requestToDelete = requestToDelete
     }
 
     var body: some View {
-        MyRequestsContentView(requests: requests)
+        MyRequestsContentView(
+            requests: requests, selectedRequest: $selectedRequest, requestToDelete: $requestToDelete
+        )
     }
 }
 
 private struct MyRequestsContentView: View {
     let requests: [SwipeRequest]
+
+    @Binding var selectedRequest: SwipeRequest?
+    @Binding var requestToDelete: SwipeRequest?
 
     // Group requests by the start of the day
     private var groupedRequests: [Date: [SwipeRequest]] {
@@ -92,96 +151,97 @@ private struct MyRequestsContentView: View {
                     description: Text("You haven't made any swipe requests yet.")
                 )
             } else {
-                ScrollView {
-                    // Use LazyVStack for performance and pinned headers
-                    LazyVStack(alignment: .leading, spacing: 16, pinnedViews: [.sectionHeaders]) {
-                        ForEach(sortedDays, id: \.self) { day in
-                            Section {
-                                // A VStack to arrange the cards vertically
-                                VStack(spacing: 12) {
-                                    ForEach(groupedRequests[day] ?? []) { request in
-                                        requestCard(for: request)
-                                    }
-                                }
-                            } header: {
-                                // Custom header view
-                                Text(
-                                    day,
-                                    format: .dateTime.weekday(.abbreviated).month(.twoDigits).day(
-                                        .twoDigits)
-                                )
-                                .font(.headline)
-                                .padding(.top)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .background(Color(.systemGroupedBackground))
-                            }
-                        }
+                requestsListView
+            }
+        }
+    }
+
+    // A computed property for the scrollable list of requests.
+    private var requestsListView: some View {
+        ScrollView {
+            // Use LazyVStack for performance and pinned headers
+            LazyVStack(alignment: .leading, spacing: 16, pinnedViews: [.sectionHeaders]) {
+                ForEach(sortedDays, id: \.self) { day in
+                    // Each day is its own section
+                    daySectionView(for: day)
+                }
+            }
+        }
+        // Add horizontal padding to the entire scrollable area
+        .padding(.horizontal)
+        .background(Color(.systemGroupedBackground))
+        .animation(.spring(response: 0.45, dampingFraction: 0.75), value: selectedRequest)
+    }
+
+    // A method to build a section for a specific day.
+    private func daySectionView(for day: Date) -> some View {
+        Section {
+            // Content of the section (the cards)
+            daySectionContent(for: day)
+        } header: {
+            // Header for the section (the date)
+            daySectionHeader(for: day)
+        }
+    }
+
+    // A method to build the header for a day section.
+    private func daySectionHeader(for day: Date) -> some View {
+        Text(
+            day,
+            format: .dateTime.weekday(.abbreviated).month(.twoDigits).day(.twoDigits)
+        )
+        .font(.headline)
+        .padding(.top)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color(.systemGroupedBackground))
+    }
+
+    // A method to build the content (cards) for a day section.
+    private func daySectionContent(for day: Date) -> some View {
+        ForEach(groupedRequests[day] ?? []) { request in
+            // Using the refactored card view
+            SwipeRequestCardView(
+                request: request,
+                isExpanded: selectedRequest?.id == request.id,
+                onDelete: {
+                    self.requestToDelete = request
+                },
+                onEdit: {
+                    withAnimation(.spring(response: 0.45, dampingFraction: 0.75)) {
+                        self.selectedRequest = nil
                     }
                 }
-                // Add horizontal padding to the entire scrollable area
-                .padding(.horizontal)
-                .background(Color(.systemGroupedBackground))
+            )
+            .onTapGesture {
+                withAnimation(.spring(response: 0.45, dampingFraction: 0.75)) {
+                    if self.selectedRequest?.id == request.id {
+                        self.selectedRequest = nil
+                    } else {
+                        self.selectedRequest = request
+                    }
+                }
             }
-        }
-    }
-
-    // Builds a single card for the request list.
-    private func requestCard(for request: SwipeRequest) -> some View {
-        HStack {
-            VStack(alignment: .leading, spacing: 5) {
-                Text(request.location.rawValue)
-                    .font(.headline)
-                Text("Meeting at: \(request.meetingTime.dateValue(), style: .time)")
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-            }
-
-            Spacer()
-
-            statusPill(for: request.status)
-        }
-        .padding()
-        .background(Color(.secondarySystemGroupedBackground))
-        .cornerRadius(12)
-        .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
-    }
-
-    // Creates a colored status indicator pill.
-    private func statusPill(for status: RequestStatus) -> some View {
-        Text(status.displayName)
-            .font(.caption.bold())
-            .padding(.horizontal, 10)
-            .padding(.vertical, 5)
-            .background(statusColor(for: status).opacity(0.15))
-            .foregroundColor(statusColor(for: status))
-            .cornerRadius(8)
-    }
-
-    // Determines the color for a given request status.
-    private func statusColor(for status: RequestStatus) -> Color {
-        switch status {
-        case .open: .green
-        case .inProgress: .blue
-        case .awaitingReview: .orange
-        case .complete: .purple
-        case .canceled: .red
         }
     }
 }
 
 #Preview {
-    NavigationStack {
-        MyRequestsContentView(requests: SwipeRequest.mockRequests)
-            .navigationTitle("My Requests")
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    NavigationLink {
-                        CreateSwipeRequestView(request: SwipeRequest())
-                    } label: {
-                        Image(systemName: "plus")
-                    }
-                }
-            }
+    // We create a wrapper to provide the necessary state for the preview.
+    struct PreviewWrapper: View {
+        @State private var selectedRequest: SwipeRequest?
+        @State private var requestToDelete: SwipeRequest?
+
+        var body: some View {
+            MyRequestsContentView(
+                requests: SwipeRequest.mockRequests,
+                selectedRequest: $selectedRequest,
+                requestToDelete: $requestToDelete
+            )
+        }
+    }
+
+    return NavigationStack {
+        PreviewWrapper()
     }
     .environment(AuthenticationManager())
 }

@@ -12,6 +12,7 @@ struct CreateSwipeRequestView: View {
     @State var request: SwipeRequest
     @State private var selectedTime = Date()
     @Environment(AuthenticationManager.self) var authManager
+    @Environment(SnackbarManager.self) var snackbarManager
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
@@ -30,8 +31,6 @@ struct CreateSwipeRequestView: View {
 
             Section {
                 HStack {
-                    Text("Meeting Time")
-                    Spacer()
                     DatePicker("Meeting Time", selection: $selectedTime, in: Date()...)
                 }
                 .frame(height: 50)
@@ -41,13 +40,6 @@ struct CreateSwipeRequestView: View {
         .navigationTitle("Make a Swipe Request")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-//            ToolbarItem(placement: .topBarLeading) {
-//                Button {
-//                    print("Cancel button pressed") // TODO: Add navigation
-//                } label : {
-//                    Text("Cancel")
-//                }
-//            }
             
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
@@ -58,6 +50,7 @@ struct CreateSwipeRequestView: View {
                     
                     Task {
                         SwipeRequestManager.shared.addSwipeRequestToDatabase(swipeRequest: request, isEdit: false)
+                        snackbarManager.show(title: "Request created", style: .success)
                         dismiss()
                     }
                 } label: {
