@@ -9,6 +9,8 @@ import FirebaseFirestore
 import SwiftUI
 
 struct OpenRequestCardView: View {
+    @Environment(AuthenticationManager.self) private var authManager
+    @Environment(SnackbarManager.self) private var snackbarManager
     let request: SwipeRequest
     var isExpanded: Bool = false
 
@@ -54,10 +56,25 @@ struct OpenRequestCardView: View {
         .font(.body)
         
         Button("Accept Request") {
-            print("Register tapped for request: \(request.id ?? "N/A")")
+            acceptRequest()
         }
         .buttonStyle(.borderedProminent)
         .frame(maxWidth: .infinity)
+    }
+
+    private func acceptRequest() {
+        guard let userId = authManager.user?.uid else {
+            // Should never happen, but just in case
+            print("User not logged in, cannot accept request.")
+            return
+        }
+
+        var updatedRequest = request
+        updatedRequest.swiperId = userId
+        updatedRequest.status = .inProgress
+
+        SwipeRequestManager.shared.addSwipeRequestToDatabase(swipeRequest: updatedRequest, isEdit: true)
+        snackbarManager.show(title: "Request accepted", style: .success)
     }
 }
 
@@ -71,4 +88,5 @@ struct OpenRequestCardView: View {
     .padding()
     .background(Color(.systemGroupedBackground))
     .environment(SnackbarManager())
+    .environment(AuthenticationManager())
 } 
