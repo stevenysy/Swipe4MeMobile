@@ -32,7 +32,7 @@ struct SwipeRequestCardView: View {
 
                 Spacer()
 
-                statusPill(for: request.status)
+                StatusPillView(status: request.status)
             }
 
             if isExpanded {
@@ -153,26 +153,6 @@ struct SwipeRequestCardView: View {
             }
             .buttonStyle(.borderedProminent)
             .frame(maxWidth: .infinity)
-        }
-    }
-
-    private func statusPill(for status: RequestStatus) -> some View {
-        Text(status.displayName)
-            .font(.caption.bold())
-            .padding(.horizontal, 10)
-            .padding(.vertical, 5)
-            .background(statusColor(for: status).opacity(0.15))
-            .foregroundColor(statusColor(for: status))
-            .cornerRadius(8)
-    }
-
-    private func statusColor(for status: RequestStatus) -> Color {
-        switch status {
-        case .open: .green
-        case .inProgress: .blue
-        case .awaitingReview: .orange
-        case .complete: .purple
-        case .canceled: .red
         }
     }
 }
