@@ -77,17 +77,6 @@ struct MyRequestsView: View {
             )
         }
     }
-
-    // A computed property for the empty state view.
-    // The @ViewBuilder is not strictly necessary here but is good practice.
-    @ViewBuilder
-    private var emptyStateView: some View {
-        ContentUnavailableView(
-            "No Requests Found",
-            systemImage: "doc.text.magnifyingglass",
-            description: Text("You haven't made any swipe requests yet.")
-        )
-    }
 }
 
 // A private view responsible for querying and displaying the list of requests
