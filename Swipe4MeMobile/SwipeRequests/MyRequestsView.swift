@@ -107,110 +107,40 @@ private struct MyRequestsListView: View {
     }
 
     var body: some View {
-        MyRequestsContentView(
-            requests: requests, selectedRequest: $selectedRequest, requestToDelete: $requestToDelete
-        )
-    }
-}
-
-private struct MyRequestsContentView: View {
-    let requests: [SwipeRequest]
-
-    @Binding var selectedRequest: SwipeRequest?
-    @Binding var requestToDelete: SwipeRequest?
-
-    // Group requests by the start of the day
-    private var groupedRequests: [Date: [SwipeRequest]] {
-        Dictionary(grouping: requests) { request in
-            Calendar.current.startOfDay(for: request.meetingTime.dateValue())
-        }
-    }
-
-    // Get the sorted list of days
-    private var sortedDays: [Date] {
-        groupedRequests.keys.sorted()
-    }
-
-    var body: some View {
-        Group {
-            if requests.isEmpty {
+        GroupedRequestsListView(
+            requests: requests,
+            cardView: { request in
+                SwipeRequestCardView(
+                    request: request,
+                    isExpanded: selectedRequest?.id == request.id,
+                    onDelete: {
+                        self.requestToDelete = request
+                    },
+                    onEdit: {
+                        withAnimation(.spring(response: 0.45, dampingFraction: 0.75)) {
+                            self.selectedRequest = nil
+                        }
+                    }
+                )
+                .onTapGesture {
+                    withAnimation(.spring(response: 0.45, dampingFraction: 0.75)) {
+                        if self.selectedRequest?.id == request.id {
+                            self.selectedRequest = nil
+                        } else {
+                            self.selectedRequest = request
+                        }
+                    }
+                }
+            },
+            emptyStateView: {
                 ContentUnavailableView(
                     "No Requests Found",
                     systemImage: "doc.text.magnifyingglass",
                     description: Text("You haven't made any swipe requests yet.")
                 )
-            } else {
-                requestsListView
             }
-        }
-    }
-
-    // A computed property for the scrollable list of requests.
-    private var requestsListView: some View {
-        ScrollView {
-            // Use LazyVStack for performance and pinned headers
-            LazyVStack(alignment: .leading, spacing: 16, pinnedViews: [.sectionHeaders]) {
-                ForEach(sortedDays, id: \.self) { day in
-                    // Each day is its own section
-                    daySectionView(for: day)
-                }
-            }
-        }
-        // Add horizontal padding to the entire scrollable area
-        .padding(.horizontal)
-        .background(Color(.systemGroupedBackground))
-        .animation(.spring(response: 0.45, dampingFraction: 0.75), value: selectedRequest)
-    }
-
-    // A method to build a section for a specific day.
-    private func daySectionView(for day: Date) -> some View {
-        Section {
-            // Content of the section (the cards)
-            daySectionContent(for: day)
-        } header: {
-            // Header for the section (the date)
-            daySectionHeader(for: day)
-        }
-    }
-
-    // A method to build the header for a day section.
-    private func daySectionHeader(for day: Date) -> some View {
-        Text(
-            day,
-            format: .dateTime.weekday(.abbreviated).month(.twoDigits).day(.twoDigits)
         )
-        .font(.headline)
-        .padding(.top)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color(.systemGroupedBackground))
-    }
-
-    // A method to build the content (cards) for a day section.
-    private func daySectionContent(for day: Date) -> some View {
-        ForEach(groupedRequests[day] ?? []) { request in
-            // Using the refactored card view
-            SwipeRequestCardView(
-                request: request,
-                isExpanded: selectedRequest?.id == request.id,
-                onDelete: {
-                    self.requestToDelete = request
-                },
-                onEdit: {
-                    withAnimation(.spring(response: 0.45, dampingFraction: 0.75)) {
-                        self.selectedRequest = nil
-                    }
-                }
-            )
-            .onTapGesture {
-                withAnimation(.spring(response: 0.45, dampingFraction: 0.75)) {
-                    if self.selectedRequest?.id == request.id {
-                        self.selectedRequest = nil
-                    } else {
-                        self.selectedRequest = request
-                    }
-                }
-            }
-        }
+        .animation(.spring(response: 0.45, dampingFraction: 0.75), value: selectedRequest)
     }
 }
 
@@ -221,10 +151,38 @@ private struct MyRequestsContentView: View {
         @State private var requestToDelete: SwipeRequest?
 
         var body: some View {
-            MyRequestsContentView(
+            GroupedRequestsListView(
                 requests: SwipeRequest.mockRequests,
-                selectedRequest: $selectedRequest,
-                requestToDelete: $requestToDelete
+                cardView: { request in
+                    SwipeRequestCardView(
+                        request: request,
+                        isExpanded: selectedRequest?.id == request.id,
+                        onDelete: {
+                            self.requestToDelete = request
+                        },
+                        onEdit: {
+                            withAnimation(.spring(response: 0.45, dampingFraction: 0.75)) {
+                                self.selectedRequest = nil
+                            }
+                        }
+                    )
+                    .onTapGesture {
+                        withAnimation(.spring(response: 0.45, dampingFraction: 0.75)) {
+                            if self.selectedRequest?.id == request.id {
+                                self.selectedRequest = nil
+                            } else {
+                                self.selectedRequest = request
+                            }
+                        }
+                    }
+                },
+                emptyStateView: {
+                    ContentUnavailableView(
+                        "No Requests Found",
+                        systemImage: "doc.text.magnifyingglass",
+                        description: Text("You haven't made any swipe requests yet.")
+                    )
+                }
             )
         }
     }
