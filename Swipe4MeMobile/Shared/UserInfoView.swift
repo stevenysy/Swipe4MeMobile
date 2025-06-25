@@ -20,7 +20,7 @@ struct UserInfoView: View {
             } else if let user = user {
                 Group {
                     if let imageUrl = URL(string: user.profilePictureUrl) {
-                        AsyncImage(url: imageUrl) { image in
+                        CachedAsyncImage(url: imageUrl) { image in
                             image.resizable()
                         } placeholder: {
                             ProgressView()
@@ -73,6 +73,7 @@ struct UserInfoView: View {
         Task {
             isLoading = true
             user = await UserManager.shared.getUser(userId: userId)
+            print("Profile pic url: \(user?.profilePictureUrl)")
             isLoading = false
         }
     }
