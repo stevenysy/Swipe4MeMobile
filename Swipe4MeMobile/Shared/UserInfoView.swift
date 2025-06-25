@@ -16,30 +16,28 @@ struct UserInfoView: View {
     var body: some View {
         HStack {
             if isLoading {
-                ProgressView()
-                Text("Loading User...")
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
+                skeletonView
             } else if let user = user {
-                if let imageUrl = URL(string: user.profilePictureUrl) {
-                    AsyncImage(url: imageUrl) { image in
-                        image.resizable()
-                            .aspectRatio(contentMode: .fill)
-                            .frame(width: 40, height: 40)
-                            .clipShape(Circle())
-                    } placeholder: {
-                        ProgressView()
-                    }
-                    .frame(width: 40, height: 40)
-                } else {
-                    Image(systemName: "person.circle.fill")
-                        .resizable()
+                Group {
+                    if let imageUrl = URL(string: user.profilePictureUrl) {
+                        AsyncImage(url: imageUrl) { image in
+                            image.resizable()
+                        } placeholder: {
+                            ProgressView()
+                        }
+                        .aspectRatio(contentMode: .fill)
                         .frame(width: 40, height: 40)
-                        .foregroundColor(.gray)
+                        .clipShape(Circle())
+                    } else {
+                        Image(systemName: "person.circle.fill")
+                            .resizable()
+                            .frame(width: 40, height: 40)
+                            .foregroundColor(.gray)
+                    }
+                    
+                    Text("\(user.firstName) \(user.lastName)")
+                        .font(.body)
                 }
-                
-                Text("\(user.firstName) \(user.lastName)")
-                    .font(.body)
             } else {
                 Image(systemName: "person.circle.fill")
                     .resizable()
@@ -51,6 +49,18 @@ struct UserInfoView: View {
         .onAppear {
             fetchUser()
         }
+    }
+
+    private var skeletonView: some View {
+        HStack {
+            Circle()
+                .frame(width: 40, height: 40)
+            
+            Text("Firstname Lastname")
+                .font(.body)
+        }
+        .redacted(reason: .placeholder)
+        .shimmering()
     }
 
     private func fetchUser() {
