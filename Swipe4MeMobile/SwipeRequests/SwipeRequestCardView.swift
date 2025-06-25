@@ -80,25 +80,12 @@ struct SwipeRequestCardView: View {
     private var readOnlyStateView: some View {
         Divider()
 
-        Text("Additional Details")
-            .font(.headline)
-
         VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Text("Swiper:")
-                    .fontWeight(.semibold)
-                Spacer()
-                Text(request.swiperId.isEmpty ? "Not assigned" : request.swiperId)
-            }
-
-            HStack {
-                Text("Created:")
-                    .fontWeight(.semibold)
-                Spacer()
-                Text(request.createdAt.dateValue(), style: .relative)
-            }
+            Text("Swiper:")
+                .font(.headline)
         }
-        .font(.body)
+
+                UserInfoView(userId: request.swiperId)
 
         HStack {
             Button("Edit") {

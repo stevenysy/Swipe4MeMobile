@@ -45,12 +45,10 @@ struct OpenRequestCardView: View {
         Divider()
 
         VStack(alignment: .leading, spacing: 8) {
-            HStack {
+            VStack(alignment: .leading, spacing: 8) {
                 Text("Requester:")
                     .fontWeight(.semibold)
-                Spacer()
-                // TODO: Fetch requester's name from requesterId
-                Text(request.requesterId)
+                UserInfoView(userId: request.requesterId)
             }
         }
         .font(.body)
