@@ -9,6 +9,7 @@ import SwiftUI
 import FirebaseFirestore
 
 struct OpenRequestsView: View {
+    @Environment(AuthenticationManager.self) private var authManager
     @FirestoreQuery(
         collectionPath: "swipeRequests",
         predicates: [
@@ -18,28 +19,53 @@ struct OpenRequestsView: View {
         ],
         animation: .default
     ) var requests: [SwipeRequest]
+    @State private var expandedRequestId: String?
+    
+    private var filteredRequests: [SwipeRequest] {
+        guard let userId = authManager.user?.uid else {
+            return []
+        }
+        return requests.filter { $0.requesterId != userId }
+    }
     
     var body: some View {
-        Text("Open Requests")
-        
-        if requests.isEmpty {
-            Text("No requests found")
-                .foregroundColor(.gray)
-        }
-        
-        List {
-            ForEach(requests, id: \.id) { request in
-                VStack(alignment: .leading) {
-                    Text("Meeting Time: \(request.meetingTime.dateValue().formatted())")
-                    Text("Location: \(request.location)")
-                    // Add more request details as needed
+        VStack {
+            Text("Open Requests")
+                .font(.largeTitle.bold())
+                .padding()
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+            GroupedRequestsListView(
+                requests: filteredRequests,
+                cardView: { request in
+                    OpenRequestCardView(
+                        request: request,
+                        isExpanded: expandedRequestId == request.id
+                    )
+                    .onTapGesture {
+                        withAnimation(.spring(response: 0.45, dampingFraction: 0.75)) {
+                            if expandedRequestId == request.id {
+                                expandedRequestId = nil
+                            } else {
+                                expandedRequestId = request.id
+                            }
+                        }
+                    }
+                },
+                emptyStateView: {
+                    ContentUnavailableView(
+                        "No Open Requests",
+                        systemImage: "doc.text.magnifyingglass",
+                        description: Text("Check back later for new requests!")
+                    )
                 }
-                .padding(.vertical, 8)
-            }
+            )
+            .animation(.spring(response: 0.45, dampingFraction: 0.75), value: expandedRequestId)
         }
     }
 }
 
 #Preview {
     OpenRequestsView()
+        .environment(AuthenticationManager())
 }

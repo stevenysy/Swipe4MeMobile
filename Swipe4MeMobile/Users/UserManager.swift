@@ -15,6 +15,8 @@ final class UserManager {
     var errorMessage = ""
     let db = Firestore.firestore()
     
+    private var userCache: [String: SFMUser] = [:]
+    
     var userID: String { Auth.auth().currentUser?.uid ?? "" }
     var currentUser: SFMUser?
     
@@ -28,6 +30,24 @@ final class UserManager {
         } catch {
             errorMessage = error.localizedDescription
             print(errorMessage)
+        }
+    }
+    
+    func getUser(userId: String) async -> SFMUser? {
+        if let cachedUser = userCache[userId] {
+            print("User \(userId) found in cache.")
+            return cachedUser
+        }
+        
+        do {
+            let document = try await db.collection("users").document(userId).getDocument()
+            let user = try document.data(as: SFMUser.self)
+            userCache[userId] = user
+            print("User \(userId) fetched from Firestore and cached.")
+            return user
+        } catch {
+            print("Error fetching user: \(error.localizedDescription)")
+            return nil
         }
     }
 }

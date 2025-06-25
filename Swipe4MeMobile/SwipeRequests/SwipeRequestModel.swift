@@ -6,6 +6,7 @@
 //
 
 import FirebaseFirestore
+import SwiftUI
 
 struct SwipeRequest: Codable, Identifiable, Equatable, Hashable {
     @DocumentID var id: String?
@@ -30,7 +31,7 @@ struct SwipeRequest: Codable, Identifiable, Equatable, Hashable {
     }
 }
 
-enum RequestStatus: String, Codable {
+enum RequestStatus: String, Codable, CaseIterable {
     case open
     case inProgress
     case awaitingReview
@@ -49,6 +50,18 @@ enum RequestStatus: String, Codable {
             return "Complete"
         case .canceled:
             return "Canceled"
+        }
+    }
+}
+
+extension RequestStatus {
+    var color: Color {
+        switch self {
+        case .open: .green
+        case .inProgress: .blue
+        case .awaitingReview: .orange
+        case .complete: .purple
+        case .canceled: .red
         }
     }
 }

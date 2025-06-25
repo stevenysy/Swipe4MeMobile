@@ -102,7 +102,7 @@ extension AuthenticationManager {
             
             // Check for vanderbilt email domain
             guard let email = user.profile?.email,
-                  email.hasSuffix("@vanderbilt.edu")
+                  email.hasSuffix("@vanderbilt.edu") || DEV_ACCOUNTS.contains(email) // Backdoor for dev accounts
             else {
                 throw AuthenticationError.nonVanderbiltEmailError(
                     message: "Please use your Vanderbilt email address")
