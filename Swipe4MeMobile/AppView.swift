@@ -24,8 +24,8 @@ struct AppView: View {
                     .environment(authManager)
             }
             .tabItem {
-                Image(systemName: "house.fill")
-                Text("Home")
+                Image(systemName: "square.grid.2x2.fill")
+                Text("Dashboard")
             }
             .tag(0)
 
