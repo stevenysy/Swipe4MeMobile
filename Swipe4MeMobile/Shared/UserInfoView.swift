@@ -73,7 +73,6 @@ struct UserInfoView: View {
         Task {
             isLoading = true
             user = await UserManager.shared.getUser(userId: userId)
-            print("Profile pic url: \(user?.profilePictureUrl)")
             isLoading = false
         }
     }

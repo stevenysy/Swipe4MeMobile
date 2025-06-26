@@ -21,7 +21,7 @@ struct AppView: View {
         TabView(selection: $selectedTab) {
             // Home Tab
             NavigationStack {
-                HomeView()
+                UserDashboardView(userRole: userRole)
                     .environment(authManager)
             }
             .tabItem {
