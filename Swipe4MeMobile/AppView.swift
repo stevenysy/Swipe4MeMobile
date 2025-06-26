@@ -14,14 +14,13 @@ enum UserRole: String, CaseIterable {
 
 struct AppView: View {
     @Environment(AuthenticationManager.self) var authManager
-    @State private var selectedTab = 0
     @State private var userRole: UserRole = .requester
 
     var body: some View {
-        TabView(selection: $selectedTab) {
+        TabView {
             // Home Tab
             NavigationStack {
-                UserDashboardView(userRole: userRole)
+                UserDashboardView(userRole: $userRole)
                     .environment(authManager)
             }
             .tabItem {
@@ -29,14 +28,6 @@ struct AppView: View {
                 Text("Home")
             }
             .tag(0)
-
-            // Dummy view for the role switch action.
-            // This view is never shown. Tapping its tab item triggers the role switch.
-            Text("")
-                .tabItem {
-                    Label("Switch Role", systemImage: "arrow.triangle.2.circlepath")
-                }
-                .tag(1)
 
             // Conditional Requests Tab
             if userRole == .requester {
@@ -48,7 +39,7 @@ struct AppView: View {
                     Image(systemName: "person.text.rectangle.fill")
                     Text("My Requests")
                 }
-                .tag(2)
+                .tag(1)
             } else {
                 NavigationStack {
                     OpenRequestsView()
@@ -58,18 +49,9 @@ struct AppView: View {
                     Image(systemName: "list.bullet")
                     Text("Open Requests")
                 }
-                .tag(2)
+                .tag(1)
             }
         }
-        .onChange(of: selectedTab) { oldTab, newTab in
-            if newTab == 1 {
-                // This is the switch tab. Toggle the role...
-                userRole = (userRole == .requester) ? .swiper : .requester
-                // ...and then immediately jump back to the previous tab.
-                selectedTab = oldTab
-            }
-        }
-        .sensoryFeedback(.impact(weight: .light), trigger: selectedTab)
         .sensoryFeedback(.selection, trigger: userRole)
     }
 }

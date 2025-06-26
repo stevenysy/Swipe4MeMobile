@@ -8,7 +8,8 @@
 import SwiftUI
 
 struct UserDashboardView: View {
-    let userRole: UserRole
+    @Binding var userRole: UserRole
+    @State private var isShowingRoleSelection = false
 
     private var navigationTitle: String {
         switch userRole {
@@ -50,7 +51,7 @@ struct UserDashboardView: View {
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button(action: {
-                        // TODO: Implement role switching
+                        isShowingRoleSelection = true
                     }) {
                         HStack(alignment: .center) {
                             Text(roleViewText)
@@ -62,10 +63,14 @@ struct UserDashboardView: View {
                     .tint(.primary)
                 }
             }
+            .sheet(isPresented: $isShowingRoleSelection) {
+                RoleSelectionView(selectedRole: $userRole)
+                    .presentationDetents([.fraction(0.25)])
+            }
         }
     }
 }
 
 #Preview {
-    UserDashboardView(userRole: .requester)
+    UserDashboardView(userRole: .constant(.requester))
 }
