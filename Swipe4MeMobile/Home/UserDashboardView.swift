@@ -10,6 +10,7 @@ import SwiftUI
 struct UserDashboardView: View {
     @Binding var userRole: UserRole
     @State private var isShowingRoleSelection = false
+    @Environment(AuthenticationManager.self) private var authManager
 
     private var navigationTitle: String {
         switch userRole {
@@ -35,7 +36,12 @@ struct UserDashboardView: View {
                 VStack {
                     // MARK: - User Info Section
                     VStack {
-                        Text("User Info Section")
+                        if let currentUser = UserManager.shared.currentUser {
+                            DashboardUserInfoView(user: currentUser)
+                        } else {
+                            Text("Loading user info...")
+                                .foregroundColor(.secondary)
+                        }
                     }
                     .frame(maxWidth: .infinity)
                     .frame(height: geometry.size.height / 4)
@@ -62,6 +68,16 @@ struct UserDashboardView: View {
                     }
                     .tint(.primary)
                 }
+                
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button(action: {
+                        authManager.signOut()
+                    }) {
+                        Image(systemName: "rectangle.portrait.and.arrow.right")
+                            .font(.title3)
+                    }
+                    .tint(.primary)
+                }
             }
             .sheet(isPresented: $isShowingRoleSelection) {
                 RoleSelectionView(selectedRole: $userRole)
@@ -73,4 +89,5 @@ struct UserDashboardView: View {
 
 #Preview {
     UserDashboardView(userRole: .constant(.requester))
+        .environment(AuthenticationManager())
 }
