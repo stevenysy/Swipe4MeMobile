@@ -20,10 +20,14 @@ struct LoginView: View {
     var GoogleSignInButton: some View {
         Button {
             Task {
-                guard let user = await authManager.signInWithGoogle() else { return }
+                guard let firebaseUser = await authManager.signInWithGoogle() else { return }
                 
                 if authManager.isFirstTimeSignIn {
-                    await UserManager.shared.createNewUser(newUser: user)
+                    let newUser = UserManager.shared.createSfmUserFromGoogleSignIn(firebaseUser: firebaseUser)
+                    await UserManager.shared.createNewUser(newUser: newUser)
+                } else {
+                    let existingUser = await UserManager.shared.getUser(userId: firebaseUser.uid)
+                    UserManager.shared.setCurrentUser(existingUser)
                 }
             }
         } label: {
@@ -43,10 +47,14 @@ struct LoginView: View {
     var MicrosoftSignInButton: some View {
         Button {
             Task {
-                guard let user = await authManager.signInWithMicrosoft() else { return }
+                guard let firebaseUser = await authManager.signInWithMicrosoft() else { return }
                 
                 if authManager.isFirstTimeSignIn {
-                    await UserManager.shared.createNewUser(newUser: user)
+                    let newUser = UserManager.shared.createSfmUserFromMicrosoftSignIn(firebaseUser: firebaseUser)
+                    await UserManager.shared.createNewUser(newUser: newUser)
+                } else {
+                    let existingUser = await UserManager.shared.getUser(userId: firebaseUser.uid)
+                    UserManager.shared.setCurrentUser(existingUser)
                 }
             }
         } label: {

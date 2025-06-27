@@ -33,6 +33,10 @@ final class UserManager {
         }
     }
     
+    func setCurrentUser(_ user: SFMUser?) {
+        currentUser = user
+    }
+    
     func getUser(userId: String) async -> SFMUser? {
         if let cachedUser = userCache[userId] {
             print("User \(userId) found in cache.")
@@ -49,5 +53,41 @@ final class UserManager {
             print("Error fetching user: \(error.localizedDescription)")
             return nil
         }
+    }
+    
+    // MARK: - User Creation from Authentication Providers
+    
+    func createSfmUserFromGoogleSignIn(firebaseUser: FirebaseAuth.User) -> SFMUser {
+        let fullName = firebaseUser.displayName ?? ""
+        let splitFullName = fullName.split(separator: " ")
+        let firstName = String(splitFullName.first ?? "")
+        let lastName = splitFullName.count >= 2 ? String(splitFullName.last ?? "") : ""
+        let email = firebaseUser.email ?? ""
+        let profilePictureUrl = firebaseUser.photoURL?.absoluteString ?? ""
+        
+        return SFMUser(
+            firstName: firstName,
+            lastName: lastName,
+            email: email,
+            profilePictureUrl: profilePictureUrl
+        )
+    }
+    
+    func createSfmUserFromMicrosoftSignIn(firebaseUser: FirebaseAuth.User) -> SFMUser {
+        // Name parsing needs to be different for MS because the display name is
+        // in Last, First format
+        let fullName = firebaseUser.displayName ?? ""
+        let splitFullName = fullName.split(separator: ", ")
+        let lastName = String(splitFullName.first ?? "")
+        let firstName = splitFullName.count >= 2 ? String(splitFullName.last ?? "") : ""
+        let email = firebaseUser.email ?? ""
+        let profilePictureUrl = firebaseUser.photoURL?.absoluteString ?? ""
+        
+        return SFMUser(
+            firstName: firstName,
+            lastName: lastName,
+            email: email,
+            profilePictureUrl: profilePictureUrl
+        )
     }
 }
