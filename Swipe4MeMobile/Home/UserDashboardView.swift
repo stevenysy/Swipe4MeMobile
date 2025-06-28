@@ -34,8 +34,13 @@ struct UserDashboardView: View {
                     )
                 }
             }
-            .navigationTitle("Dashboard")
+            // .navigationTitle("Dashboard")
             .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Text("Swipe4Me")
+                    .font(.title2)
+                    .fontWeight(.semibold)
+                }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button(action: {
                         authManager.signOut()
