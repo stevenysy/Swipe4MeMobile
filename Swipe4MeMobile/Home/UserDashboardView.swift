@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import FirebaseFirestore
 
 struct UserDashboardView: View {
     @Environment(AuthenticationManager.self) private var authManager
@@ -13,7 +14,7 @@ struct UserDashboardView: View {
     var body: some View {
         NavigationStack {
             GeometryReader { geometry in
-                VStack {
+                VStack(spacing: 0) {
                     // MARK: - User Info Section
                     VStack {
                         if let currentUser = UserManager.shared.currentUser {
@@ -26,12 +27,15 @@ struct UserDashboardView: View {
                     .frame(maxWidth: .infinity)
                     .frame(height: geometry.size.height / 4)
 
-                    // MARK: - Grouped Requests List
-                    GroupedRequestsListView(
-                        requests: [],
-                        cardView: { _ in Text("Request Card") },
-                        emptyStateView: { Text("No Requests") }
-                    )
+                    // MARK: - My Upcoming Sessions Section
+                    if let userId = authManager.user?.uid {
+                        UserRequestsListView(userId: userId)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                    } else {
+                        Text("Loading...")
+                            .foregroundColor(.secondary)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    }
                 }
             }
             .toolbar {
@@ -54,7 +58,159 @@ struct UserDashboardView: View {
     }
 }
 
+// Filter options for user requests
+enum RequestFilter: String, CaseIterable {
+    case all = "All"
+    case requester = "My Requests"
+    case swiper = "Swipe Sessions"
+}
+
+// A private view that handles the Firestore queries for user requests
+private struct UserRequestsListView: View {
+    @State private var currentFilter: RequestFilter = .all
+    @State private var selectedRequest: SwipeRequest?
+    @State private var requestToDelete: SwipeRequest?
+    @Environment(SnackbarManager.self) private var snackbarManager
+    
+    let userId: String
+    
+    // We'll use multiple queries and switch between them based on filter
+    @FirestoreQuery var requesterRequests: [SwipeRequest]
+    @FirestoreQuery var swiperRequests: [SwipeRequest]
+    
+    // Combined requests based on current filter
+    private var filteredRequests: [SwipeRequest] {
+        switch currentFilter {
+        case .all:
+            // Combine both and remove duplicates
+            let combined = requesterRequests + swiperRequests
+            // let uniqueRequests = Array(Set(combined))
+            return combined.sorted { $0.meetingTime.dateValue() < $1.meetingTime.dateValue() }
+        case .requester:
+            return requesterRequests
+        case .swiper:
+            return swiperRequests
+        }
+    }
+    
+    init(userId: String) {
+        self.userId = userId
+        
+        let now = Timestamp()
+        
+        // Query for requests where user is the requester (future only)
+        self._requesterRequests = FirestoreQuery(
+            collectionPath: "swipeRequests",
+            predicates: [
+                .where("requesterId", isEqualTo: userId),
+                .where("meetingTime", isGreaterThan: now),
+                .order(by: "meetingTime", descending: false)
+            ]
+        )
+        
+        // Query for requests where user is the swiper (future only)
+        self._swiperRequests = FirestoreQuery(
+            collectionPath: "swipeRequests",
+            predicates: [
+                .where("swiperId", isEqualTo: userId),
+                .where("meetingTime", isGreaterThan: now),
+                .order(by: "meetingTime", descending: false)
+            ]
+        )
+    }
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Text("My Upcoming Sessions")
+                    .font(.title2)
+                    .fontWeight(.semibold)
+                    .padding(.horizontal)
+                Spacer()
+                
+                // Filter picker - you can uncomment and customize this later
+                Picker("Filter", selection: $currentFilter) {
+                    ForEach(RequestFilter.allCases, id: \.self) { filter in
+                        Text(filter.rawValue).tag(filter)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .frame(width: 200)
+                .padding(.horizontal)
+            }
+            
+            GroupedRequestsListView(
+                requests: filteredRequests,
+                cardView: { request in
+                    SwipeRequestCardView(
+                        request: request,
+                        isExpanded: selectedRequest?.id == request.id,
+                        onDelete: {
+                            self.requestToDelete = request
+                        },
+                        onEdit: {
+                            withAnimation(.spring(response: 0.45, dampingFraction: 0.75)) {
+                                self.selectedRequest = nil
+                            }
+                        }
+                    )
+                    .onTapGesture {
+                        withAnimation(.spring(response: 0.45, dampingFraction: 0.75)) {
+                            if self.selectedRequest?.id == request.id {
+                                self.selectedRequest = nil
+                            } else {
+                                self.selectedRequest = request
+                            }
+                        }
+                    }
+                },
+                emptyStateView: {
+                    VStack(spacing: 16) {
+                        Image(systemName: "calendar.badge.exclamationmark")
+                            .font(.system(size: 48))
+                            .foregroundColor(.secondary)
+                        
+                        Text("No Upcoming Sessions")
+                            .font(.headline)
+                            .foregroundColor(.secondary)
+                        
+                        Text("You don't have any scheduled swipe sessions yet.")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                            .multilineTextAlignment(.center)
+                    }
+                    .padding()
+                    .frame(maxWidth: .infinity)
+                    .frame(minHeight: 200)
+                }
+            )
+        }
+        .animation(.spring(response: 0.45, dampingFraction: 0.75), value: selectedRequest)
+        .animation(.easeInOut, value: currentFilter)
+        .alert(
+            "Delete Request", isPresented: .constant(requestToDelete != nil),
+            presenting: requestToDelete
+        ) { request in
+            Button("Delete", role: .destructive) {
+                if let requestToDelete = requestToDelete {
+                    SwipeRequestManager.shared.deleteRequest(requestToDelete)
+                    snackbarManager.show(title: "Request Deleted", style: .success)
+                }
+                self.requestToDelete = nil
+            }
+            Button("Cancel", role: .cancel) {
+                self.requestToDelete = nil
+            }
+        } message: { request in
+            Text(
+                "Are you sure you want to delete this swipe request for \(request.location.rawValue) at \(request.meetingTime.dateValue(), style: .time)? This action cannot be undone."
+            )
+        }
+    }
+}
+
 #Preview {
     UserDashboardView()
         .environment(AuthenticationManager())
+        .environment(SnackbarManager())
 }
