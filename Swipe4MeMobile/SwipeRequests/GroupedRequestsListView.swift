@@ -74,4 +74,72 @@ struct GroupedRequestsListView<Content: View, EmptyContent: View>: View {
             cardView(request)
         }
     }
+}
+
+/// A specialized version of GroupedRequestsListView that encapsulates state management
+/// for SwipeRequestCardView interactions (selection, deletion, etc.)
+///
+/// - Parameters:
+///   - requests: The list of requests to display.
+///   - userId: The current user's ID to determine if they are the requester or swiper.
+///   - emptyStateView: A view builder that creates a view to display when there are no requests.
+struct SwipeRequestGroupedListView<EmptyContent: View>: View {
+    let requests: [SwipeRequest]
+    let userId: String
+    @ViewBuilder let emptyStateView: () -> EmptyContent
+    
+    @State private var selectedRequest: SwipeRequest?
+    @State private var requestToDelete: SwipeRequest?
+    @Environment(SnackbarManager.self) private var snackbarManager
+
+    var body: some View {
+        GroupedRequestsListView(
+            requests: requests,
+            cardView: { request in
+                SwipeRequestCardView(
+                    request: request,
+                    isExpanded: selectedRequest?.id == request.id,
+                    onDelete: {
+                        self.requestToDelete = request
+                    },
+                    onEdit: {
+                        withAnimation(.spring(response: 0.45, dampingFraction: 0.75)) {
+                            self.selectedRequest = nil
+                        }
+                    },
+                    isRequesterCard: request.requesterId == userId
+                )
+                .onTapGesture {
+                    withAnimation(.spring(response: 0.45, dampingFraction: 0.75)) {
+                        if self.selectedRequest?.id == request.id {
+                            self.selectedRequest = nil
+                        } else {
+                            self.selectedRequest = request
+                        }
+                    }
+                }
+            },
+            emptyStateView: emptyStateView
+        )
+        .animation(.spring(response: 0.45, dampingFraction: 0.75), value: selectedRequest)
+        .alert(
+            "Delete Request", isPresented: .constant(requestToDelete != nil),
+            presenting: requestToDelete
+        ) { request in
+            Button("Delete", role: .destructive) {
+                if let requestToDelete = requestToDelete {
+                    SwipeRequestManager.shared.deleteRequest(requestToDelete)
+                    snackbarManager.show(title: "Request Deleted", style: .success)
+                }
+                self.requestToDelete = nil
+            }
+            Button("Cancel", role: .cancel) {
+                self.requestToDelete = nil
+            }
+        } message: { request in
+            Text(
+                "Are you sure you want to delete this swipe request for \(request.location.rawValue) at \(request.meetingTime.dateValue(), style: .time)? This action cannot be undone."
+            )
+        }
+    }
 } 

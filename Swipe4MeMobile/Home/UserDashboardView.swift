@@ -67,8 +67,6 @@ enum RequestFilter: String, CaseIterable {
 // A private view that handles the Firestore queries for user requests
 private struct UserRequestsListView: View {
     @State private var currentFilter: RequestFilter? = nil
-    @State private var selectedRequest: SwipeRequest?
-    @State private var requestToDelete: SwipeRequest?
     @Environment(SnackbarManager.self) private var snackbarManager
     
     let userId: String
@@ -162,32 +160,9 @@ private struct UserRequestsListView: View {
             }
             .padding(.horizontal)
             
-            GroupedRequestsListView(
+            SwipeRequestGroupedListView(
                 requests: filteredRequests,
-                cardView: { request in
-                    SwipeRequestCardView(
-                        request: request,
-                        isExpanded: selectedRequest?.id == request.id,
-                        onDelete: {
-                            self.requestToDelete = request
-                        },
-                        onEdit: {
-                            withAnimation(.spring(response: 0.45, dampingFraction: 0.75)) {
-                                self.selectedRequest = nil
-                            }
-                        },
-                        isRequesterCard: request.requesterId == userId
-                    )
-                    .onTapGesture {
-                        withAnimation(.spring(response: 0.45, dampingFraction: 0.75)) {
-                            if self.selectedRequest?.id == request.id {
-                                self.selectedRequest = nil
-                            } else {
-                                self.selectedRequest = request
-                            }
-                        }
-                    }
-                },
+                userId: userId,
                 emptyStateView: {
                     VStack(spacing: 16) {
                         Image(systemName: "calendar.badge.exclamationmark")
@@ -209,27 +184,7 @@ private struct UserRequestsListView: View {
                 }
             )
         }
-        .animation(.spring(response: 0.45, dampingFraction: 0.75), value: selectedRequest)
         .animation(.easeInOut, value: currentFilter)
-        .alert(
-            "Delete Request", isPresented: .constant(requestToDelete != nil),
-            presenting: requestToDelete
-        ) { request in
-            Button("Delete", role: .destructive) {
-                if let requestToDelete = requestToDelete {
-                    SwipeRequestManager.shared.deleteRequest(requestToDelete)
-                    snackbarManager.show(title: "Request Deleted", style: .success)
-                }
-                self.requestToDelete = nil
-            }
-            Button("Cancel", role: .cancel) {
-                self.requestToDelete = nil
-            }
-        } message: { request in
-            Text(
-                "Are you sure you want to delete this swipe request for \(request.location.rawValue) at \(request.meetingTime.dateValue(), style: .time)? This action cannot be undone."
-            )
-        }
     }
 }
 
