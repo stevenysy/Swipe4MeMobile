@@ -8,27 +8,7 @@
 import SwiftUI
 
 struct UserDashboardView: View {
-    @Binding var userRole: UserRole
-    @State private var isShowingRoleSelection = false
     @Environment(AuthenticationManager.self) private var authManager
-
-    private var navigationTitle: String {
-        switch userRole {
-        case .requester:
-            "Requester Dashboard"
-        case .swiper:
-            "Swiper Dashboard"
-        }
-    }
-
-    private var roleViewText: String {
-        switch userRole {
-        case .requester:
-            "Requester View"
-        case .swiper:
-            "Swiper View"
-        }
-    }
 
     var body: some View {
         NavigationStack {
@@ -54,21 +34,8 @@ struct UserDashboardView: View {
                     )
                 }
             }
+            .navigationTitle("Dashboard")
             .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    Button(action: {
-                        isShowingRoleSelection = true
-                    }) {
-                        HStack(alignment: .center) {
-                            Text(roleViewText)
-                            Image(systemName: "chevron.down")
-                                .font(.caption.bold())
-                        }
-                        .font(.title3.bold())
-                    }
-                    .tint(.primary)
-                }
-                
                 ToolbarItem(placement: .topBarTrailing) {
                     Button(action: {
                         authManager.signOut()
@@ -79,15 +46,11 @@ struct UserDashboardView: View {
                     .tint(.primary)
                 }
             }
-            .sheet(isPresented: $isShowingRoleSelection) {
-                RoleSelectionView(selectedRole: $userRole)
-                    .presentationDetents([.fraction(0.25)])
-            }
         }
     }
 }
 
 #Preview {
-    UserDashboardView(userRole: .constant(.requester))
+    UserDashboardView()
         .environment(AuthenticationManager())
 }
