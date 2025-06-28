@@ -34,7 +34,6 @@ struct UserDashboardView: View {
                     )
                 }
             }
-            // .navigationTitle("Dashboard")
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Text("Swipe4Me")
