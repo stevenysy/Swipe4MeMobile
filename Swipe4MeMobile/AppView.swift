@@ -7,70 +7,50 @@
 
 import SwiftUI
 
-enum UserRole: String, CaseIterable {
-    case requester = "Requester"
-    case swiper = "Swiper"
-}
+// TODO: Get rid of the role selection!!!
+// Users should be able to request swipes and register to swipe for others
+// without having to switch roles.
+// In the dashboard, we can just show the user's all future sessions and use
+// different colors to indicate the role of the user.
 
 struct AppView: View {
     @Environment(AuthenticationManager.self) var authManager
-    @State private var selectedTab = 0
-    @State private var userRole: UserRole = .requester
 
     var body: some View {
-        TabView(selection: $selectedTab) {
+        TabView {
             // Home Tab
             NavigationStack {
-                HomeView()
+                UserDashboardView()
                     .environment(authManager)
             }
             .tabItem {
-                Image(systemName: "house.fill")
-                Text("Home")
+                Image(systemName: "square.grid.2x2.fill")
+                Text("Dashboard")
             }
             .tag(0)
 
-            // Dummy view for the role switch action.
-            // This view is never shown. Tapping its tab item triggers the role switch.
-            Text("")
-                .tabItem {
-                    Label("Switch Role", systemImage: "arrow.triangle.2.circlepath")
-                }
-                .tag(1)
+            // My Requests Tab
+            NavigationStack {
+                MyRequestsView()
+                    .environment(authManager)
+            }
+            .tabItem {
+                Image(systemName: "person.text.rectangle.fill")
+                Text("My Requests")
+            }
+            .tag(1)
 
-            // Conditional Requests Tab
-            if userRole == .requester {
-                NavigationStack {
-                    MyRequestsView()
-                        .environment(authManager)
-                }
-                .tabItem {
-                    Image(systemName: "person.text.rectangle.fill")
-                    Text("My Requests")
-                }
-                .tag(2)
-            } else {
-                NavigationStack {
-                    OpenRequestsView()
-                        .environment(authManager)
-                }
-                .tabItem {
-                    Image(systemName: "list.bullet")
-                    Text("Open Requests")
-                }
-                .tag(2)
+            // Open Requests Tab
+            NavigationStack {
+                OpenRequestsView()
+                    .environment(authManager)
             }
-        }
-        .onChange(of: selectedTab) { oldTab, newTab in
-            if newTab == 1 {
-                // This is the switch tab. Toggle the role...
-                userRole = (userRole == .requester) ? .swiper : .requester
-                // ...and then immediately jump back to the previous tab.
-                selectedTab = oldTab
+            .tabItem {
+                Image(systemName: "list.bullet")
+                Text("Open Requests")
             }
+            .tag(2)
         }
-        .sensoryFeedback(.impact(weight: .light), trigger: selectedTab)
-        .sensoryFeedback(.selection, trigger: userRole)
     }
 }
 

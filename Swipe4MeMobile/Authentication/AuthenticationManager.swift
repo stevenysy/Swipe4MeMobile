@@ -76,7 +76,7 @@ enum AuthenticationError: LocalizedError {
 
 // Google sign in
 extension AuthenticationManager {
-    func signInWithGoogle() async -> SFMUser? {
+    func signInWithGoogle() async -> FirebaseAuth.User? {
         guard let clientID = FirebaseApp.app()?.options.clientID else {
             fatalError("No client ID found in Firebase configuration")
         }
@@ -115,50 +115,28 @@ extension AuthenticationManager {
                 accessToken: accessToken.tokenString)
             
             let result = try await Auth.auth().signIn(with: credential)
-            if let isNewUser = result.additionalUserInfo?.isNewUser, isNewUser {
-                isFirstTimeSignIn = true
-            }
             let firebaseUser = result.user
-            print(
-                "User \(firebaseUser.uid) signed in with email \(firebaseUser.email ?? "unknown")")
-            return createSfmUserFromGoogleSignIn(firebaseUser: firebaseUser)
+            
+            let isNewUser = result.additionalUserInfo?.isNewUser ?? false
+            if isNewUser {
+                isFirstTimeSignIn = true
+                print("New user \(firebaseUser.uid) signed in with email \(firebaseUser.email ?? "unknown")")
+            } else {
+                print("Returning user \(firebaseUser.uid) signed in with email \(firebaseUser.email ?? "unknown")")
+            }
+            
+            return firebaseUser
         } catch {
             print(error.localizedDescription)
             self.errorMessage = error.localizedDescription
             return nil
         }
     }
-    
-    private func createSfmUserFromGoogleSignIn(firebaseUser: FirebaseAuth.User) -> SFMUser {
-        dump(firebaseUser)
-        
-        let fullName = firebaseUser.displayName ?? ""
-        let splitFullName = fullName.split(separator: " ")
-        let firstName = String(splitFullName.first ?? "")
-        let lastName = splitFullName.count >= 2 ? String(splitFullName.last ?? "") : ""
-        let email = firebaseUser.email ?? ""
-        let profilePictureUrl = firebaseUser.photoURL?.absoluteString ?? ""
-        
-        return SFMUser(
-            firstName: firstName,
-            lastName: lastName,
-            email: email,
-            profilePictureUrl: profilePictureUrl
-        )
-    }
 }
 
 // Microsoft sign in
 extension AuthenticationManager {
-    func signInWithMicrosoft() async -> SFMUser? {
-//        guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-//              let window = windowScene.windows.first,
-//              let rootViewController = window.rootViewController
-//        else {
-//            print("There is no root view controller!")
-//            return nil
-//        }
-        
+    func signInWithMicrosoft() async -> FirebaseAuth.User? {
         do {
             // Create Microsoft provider
             let provider = OAuthProvider(providerID: "microsoft.com")
@@ -182,38 +160,22 @@ extension AuthenticationManager {
                     message: "Please use your Vanderbilt email address")
             }
             
-            // Check if this is a new user
-            if let isNewUser = result.additionalUserInfo?.isNewUser, isNewUser {
+            let firebaseUser = result.user
+            
+            let isNewUser = result.additionalUserInfo?.isNewUser ?? false
+            if isNewUser {
                 isFirstTimeSignIn = true
+                print("New user \(firebaseUser.uid) signed in with email \(firebaseUser.email ?? "unknown")")
+            } else {
+                print("Returning user \(firebaseUser.uid) signed in with email \(firebaseUser.email ?? "unknown")")
             }
             
-            let firebaseUser = result.user
-            print("User \(firebaseUser.uid) signed in with email \(firebaseUser.email ?? "unknown")")
-            
-            return createSfmUserFromMicrosoftSignIn(firebaseUser: firebaseUser)
+            return firebaseUser
             
         } catch {
             print(error.localizedDescription)
             self.errorMessage = error.localizedDescription
             return nil
         }
-    }
-    
-    private func createSfmUserFromMicrosoftSignIn(firebaseUser: FirebaseAuth.User) -> SFMUser {
-        // Name parsing needs to be different for MS because the display name is
-        // in Last, First format
-        let fullName = firebaseUser.displayName ?? ""
-        let splitFullName = fullName.split(separator: ", ")
-        let lastName = String(splitFullName.first ?? "")
-        let firstName = splitFullName.count >= 2 ? String(splitFullName.last ?? "") : ""
-        let email = firebaseUser.email ?? ""
-        let profilePictureUrl = firebaseUser.photoURL?.absoluteString ?? ""
-        
-        return SFMUser(
-            firstName: firstName,
-            lastName: lastName,
-            email: email,
-            profilePictureUrl: profilePictureUrl
-        )
     }
 }

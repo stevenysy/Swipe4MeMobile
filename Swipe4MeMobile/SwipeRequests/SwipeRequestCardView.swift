@@ -13,6 +13,7 @@ struct SwipeRequestCardView: View {
     var isExpanded: Bool = false
     var onDelete: () -> Void = {}
     var onEdit: () -> Void = {}
+    var isRequesterCard: Bool = true  // true for requester requests, false for swiper requests
 
     @Environment(SnackbarManager.self) private var snackbarManager
     @State private var isEditing = false
@@ -81,11 +82,15 @@ struct SwipeRequestCardView: View {
         Divider()
 
         VStack(alignment: .leading, spacing: 8) {
-            Text("Swiper:")
+            Text(isRequesterCard ? "Swiper:" : "Requester:")
                 .font(.headline)
         }
 
-                UserInfoView(userId: request.swiperId)
+        if isRequesterCard {
+            UserInfoView(userId: request.swiperId)
+        } else {
+            UserInfoView(userId: request.requesterId)
+        }
 
         HStack {
             Button("Edit") {
@@ -147,15 +152,21 @@ struct SwipeRequestCardView: View {
 #Preview {
     VStack(spacing: 20) {
         if let request = SwipeRequest.mockRequests.first {
-            SwipeRequestCardView(request: request, isExpanded: false)
+            // Requester card (default behavior)
+            SwipeRequestCardView(request: request, isExpanded: false, isRequesterCard: true)
             SwipeRequestCardView(
-                request: request, isExpanded: true,
-                onDelete: {
+                request: request, isExpanded: true, onDelete: {
                     print("Delete action triggered for request: \(request.id ?? "N/A")")
-                },
-                onEdit: {
+                }, onEdit: {
                     print("Edit submitted for request: \(request.id ?? "N/A")")
-                })
+                }, isRequesterCard: true)
+            
+            // Swiper card (shows requester info)
+            SwipeRequestCardView(request: request, isExpanded: true, onDelete: {
+                print("Delete action triggered for swiper request: \(request.id ?? "N/A")")
+            }, onEdit: {
+                print("Edit submitted for swiper request: \(request.id ?? "N/A")")
+            }, isRequesterCard: false)
         }
     }
     .padding()
