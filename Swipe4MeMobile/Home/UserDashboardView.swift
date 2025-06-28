@@ -60,14 +60,13 @@ struct UserDashboardView: View {
 
 // Filter options for user requests
 enum RequestFilter: String, CaseIterable {
-    case all = "All"
-    case requester = "My Requests"
-    case swiper = "Swipe Sessions"
+    case requester = "Requester"
+    case swiper = "Swiper"
 }
 
 // A private view that handles the Firestore queries for user requests
 private struct UserRequestsListView: View {
-    @State private var currentFilter: RequestFilter = .all
+    @State private var currentFilter: RequestFilter? = nil
     @State private var selectedRequest: SwipeRequest?
     @State private var requestToDelete: SwipeRequest?
     @Environment(SnackbarManager.self) private var snackbarManager
@@ -81,10 +80,9 @@ private struct UserRequestsListView: View {
     // Combined requests based on current filter
     private var filteredRequests: [SwipeRequest] {
         switch currentFilter {
-        case .all:
-            // Combine both and remove duplicates
+        case nil:
+            // Show all requests when no filter is active
             let combined = requesterRequests + swiperRequests
-            // let uniqueRequests = Array(Set(combined))
             return combined.sorted { $0.meetingTime.dateValue() < $1.meetingTime.dateValue() }
         case .requester:
             return requesterRequests
@@ -128,16 +126,41 @@ private struct UserRequestsListView: View {
                     .padding(.horizontal)
                 Spacer()
                 
-                // Filter picker - you can uncomment and customize this later
-                Picker("Filter", selection: $currentFilter) {
-                    ForEach(RequestFilter.allCases, id: \.self) { filter in
-                        Text(filter.rawValue).tag(filter)
-                    }
-                }
-                .pickerStyle(.segmented)
-                .frame(width: 200)
-                .padding(.horizontal)
+                // TODO: Add button to create a new request
             }
+            
+            // Mutually exclusive filter buttons
+            HStack(spacing: 8) {
+                ForEach(RequestFilter.allCases, id: \.self) { filter in
+                    Button(action: {
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            if currentFilter == filter {
+                                // If this filter is already active, turn it off
+                                currentFilter = nil
+                            } else {
+                                // Switch to this filter
+                                currentFilter = filter
+                            }
+                        }
+                    }) {
+                        Text(filter.rawValue)
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 8)
+                            .background {
+                                RoundedRectangle(cornerRadius: 20)
+                                    .fill(currentFilter == filter ? 
+                                          Color.accentColor : Color.secondary.opacity(0.2))
+                            }
+                            .foregroundColor(currentFilter == filter ? 
+                                           .white : .primary)
+                    }
+                    .buttonStyle(.plain)
+                }
+                Spacer()
+            }
+            .padding(.horizontal)
             
             GroupedRequestsListView(
                 requests: filteredRequests,
