@@ -175,7 +175,8 @@ private struct UserRequestsListView: View {
                             withAnimation(.spring(response: 0.45, dampingFraction: 0.75)) {
                                 self.selectedRequest = nil
                             }
-                        }
+                        },
+                        isRequesterCard: request.requesterId == userId
                     )
                     .onTapGesture {
                         withAnimation(.spring(response: 0.45, dampingFraction: 0.75)) {
