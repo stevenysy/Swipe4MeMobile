@@ -16,11 +16,48 @@ final class UserManager {
     let db = Firestore.firestore()
     
     private var userCache: [String: SFMUser] = [:]
+    private var authStateListener: AuthStateDidChangeListenerHandle?
     
     var userID: String { Auth.auth().currentUser?.uid ?? "" }
     var currentUser: SFMUser?
     
-    private init() {}
+    private init() {
+        registerAuthStateHandler()
+    }
+    
+    private func registerAuthStateHandler() {
+        if authStateListener == nil {
+            authStateListener = Auth.auth().addStateDidChangeListener { auth, user in
+                if user != nil {
+                    // User is signed in, fetch their data
+                    Task {
+                        await self.fetchCurrentUser()
+                    }
+                } else {
+                    // User is signed out, clear current user
+                    self.currentUser = nil
+                }
+            }
+        }
+    }
+    
+    func fetchCurrentUser() async {
+        guard !userID.isEmpty else {
+            print("No authenticated user found")
+            return
+        }
+        
+        do {
+            let document = try await db.collection("users").document(userID).getDocument()
+            let user = try document.data(as: SFMUser.self)
+            currentUser = user
+            userCache[userID] = user
+            print("Current user fetched and set: \(user.firstName) \(user.lastName)")
+        } catch {
+            errorMessage = "Failed to fetch current user: \(error.localizedDescription)"
+            print(errorMessage)
+        }
+    }
     
     func createNewUser(newUser: SFMUser) async {
         do {

@@ -25,10 +25,8 @@ struct LoginView: View {
                 if authManager.isFirstTimeSignIn {
                     let newUser = UserManager.shared.createSfmUserFromGoogleSignIn(firebaseUser: firebaseUser)
                     await UserManager.shared.createNewUser(newUser: newUser)
-                } else {
-                    let existingUser = await UserManager.shared.getUser(userId: firebaseUser.uid)
-                    UserManager.shared.setCurrentUser(existingUser)
                 }
+                // Note: UserManager now automatically fetches existing users via auth state listener
             }
         } label: {
             HStack(alignment: .center, spacing: 0) {
@@ -52,10 +50,8 @@ struct LoginView: View {
                 if authManager.isFirstTimeSignIn {
                     let newUser = UserManager.shared.createSfmUserFromMicrosoftSignIn(firebaseUser: firebaseUser)
                     await UserManager.shared.createNewUser(newUser: newUser)
-                } else {
-                    let existingUser = await UserManager.shared.getUser(userId: firebaseUser.uid)
-                    UserManager.shared.setCurrentUser(existingUser)
                 }
+                // Note: UserManager now automatically fetches existing users via auth state listener
             }
         } label: {
             HStack(alignment: .center, spacing: 0) {
