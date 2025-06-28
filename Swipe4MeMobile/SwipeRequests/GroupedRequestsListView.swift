@@ -92,35 +92,24 @@ struct SwipeRequestGroupedListView<EmptyContent: View>: View {
     @State private var requestToDelete: SwipeRequest?
     @Environment(SnackbarManager.self) private var snackbarManager
 
+    private var groupedRequests: [Date: [SwipeRequest]] {
+        Dictionary(grouping: requests) { request in
+            Calendar.current.startOfDay(for: request.meetingTime.dateValue())
+        }
+    }
+
+    private var sortedDays: [Date] {
+        groupedRequests.keys.sorted()
+    }
+
     var body: some View {
-        GroupedRequestsListView(
-            requests: requests,
-            cardView: { request in
-                SwipeRequestCardView(
-                    request: request,
-                    isExpanded: selectedRequest?.id == request.id,
-                    onDelete: {
-                        self.requestToDelete = request
-                    },
-                    onEdit: {
-                        withAnimation(.spring(response: 0.45, dampingFraction: 0.75)) {
-                            self.selectedRequest = nil
-                        }
-                    },
-                    isRequesterCard: request.requesterId == userId
-                )
-                .onTapGesture {
-                    withAnimation(.spring(response: 0.45, dampingFraction: 0.75)) {
-                        if self.selectedRequest?.id == request.id {
-                            self.selectedRequest = nil
-                        } else {
-                            self.selectedRequest = request
-                        }
-                    }
-                }
-            },
-            emptyStateView: emptyStateView
-        )
+        Group {
+            if requests.isEmpty {
+                emptyStateView()
+            } else {
+                requestsListViewWithScrolling
+            }
+        }
         .animation(.spring(response: 0.45, dampingFraction: 0.75), value: selectedRequest)
         .alert(
             "Delete Request", isPresented: .constant(requestToDelete != nil),
@@ -140,6 +129,61 @@ struct SwipeRequestGroupedListView<EmptyContent: View>: View {
             Text(
                 "Are you sure you want to delete this swipe request for \(request.location.rawValue) at \(request.meetingTime.dateValue(), style: .time)? This action cannot be undone."
             )
+        }
+    }
+    
+    private var requestsListViewWithScrolling: some View {
+        ScrollViewReader { proxy in
+            ScrollView {
+                LazyVStack(alignment: .leading, spacing: 16, pinnedViews: [.sectionHeaders]) {
+                    ForEach(sortedDays, id: \.self) { day in
+                        Section {
+                            ForEach(groupedRequests[day] ?? []) { request in
+                                SwipeRequestCardView(
+                                    request: request,
+                                    isExpanded: selectedRequest?.id == request.id,
+                                    onDelete: {
+                                        self.requestToDelete = request
+                                    },
+                                    onEdit: {
+                                        withAnimation(.spring(response: 0.45, dampingFraction: 0.75)) {
+                                            self.selectedRequest = nil
+                                        }
+                                    },
+                                    isRequesterCard: request.requesterId == userId
+                                )
+                                .id(request.id) // Important: Give each card a unique ID for scrolling
+                                .onTapGesture {
+                                    withAnimation(.spring(response: 0.45, dampingFraction: 0.75)) {
+                                        if self.selectedRequest?.id == request.id {
+                                            self.selectedRequest = nil
+                                        } else {
+                                            self.selectedRequest = request
+                                            // Scroll to the expanded card after a brief delay to allow the animation to start
+                                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                                                withAnimation(.easeInOut(duration: 0.5)) {
+                                                    proxy.scrollTo(request.id, anchor: .center)
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        } header: {
+                            Text(
+                                day,
+                                format: .dateTime.weekday(.abbreviated).month(.twoDigits).day(.twoDigits)
+                            )
+                            .font(.headline)
+                            .padding(.top)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background(Color(.systemGroupedBackground))
+                        }
+                    }
+                }
+            }
+            .padding(.horizontal)
+            .background(Color(.systemGroupedBackground))
         }
     }
 } 
