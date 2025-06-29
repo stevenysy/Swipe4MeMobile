@@ -69,7 +69,7 @@ struct OpenRequestCardView: View {
 
         var updatedRequest = request
         updatedRequest.swiperId = userId
-        updatedRequest.status = .inProgress
+        updatedRequest.status = .scheduled
 
         SwipeRequestManager.shared.addSwipeRequestToDatabase(swipeRequest: updatedRequest, isEdit: true)
         snackbarManager.show(title: "Request accepted", style: .success)
