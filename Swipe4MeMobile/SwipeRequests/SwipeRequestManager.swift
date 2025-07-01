@@ -7,6 +7,7 @@
 
 import FirebaseFirestore
 import FirebaseAuth
+import FirebaseFunctions
 import Foundation
 
 enum CloudTaskError: Error, LocalizedError {
@@ -69,7 +70,7 @@ final class SwipeRequestManager {
     func scheduleCloudTaskForRequest(requestId: String, meetingTime: Timestamp) {
         Task {
             do {
-                try await createCloudTask(requestId: requestId, meetingTime: meetingTime)
+                try await callScheduleTaskFunction(requestId: requestId, meetingTime: meetingTime)
                 print("Successfully scheduled cloud task for request \(requestId)")
             } catch {
                 print("Failed to schedule cloud task: \(error)")
@@ -79,16 +80,10 @@ final class SwipeRequestManager {
         }
     }
     
-    private func createCloudTask(requestId: String, meetingTime: Timestamp) async throws {
-        // Call the backend Cloud Function to schedule the task
-        try await callScheduleTaskFunction(requestId: requestId, meetingTime: meetingTime)
-    }
-    
     private func callScheduleTaskFunction(requestId: String, meetingTime: Timestamp) async throws {
-        let projectId = "swipe4me-ios"
-        
-        // Cloud Function URL for scheduling tasks
-        let cloudFunctionUrl = "https://us-central1-\(projectId).cloudfunctions.net/scheduleRequestStatusUpdate"
+        // Use Firebase Functions SDK - much cleaner!
+        let functions = Functions.functions()
+        let scheduleFunction = functions.httpsCallable("scheduleRequestStatusUpdate")
         
         // Convert Timestamp to ISO string
         let scheduleTime = meetingTime.dateValue()
@@ -96,27 +91,21 @@ final class SwipeRequestManager {
         iso8601Formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
         let meetingTimeString = iso8601Formatter.string(from: scheduleTime)
         
-        // Request payload for the Cloud Function
-        let requestBody = [
+        // Call the function with data
+        let data: [String: String] = [
             "requestId": requestId,
             "meetingTime": meetingTimeString
         ]
         
-        let url = URL(string: cloudFunctionUrl)!
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
-        
-        let (data, response) = try await URLSession.shared.data(for: request)
-        
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw CloudTaskError.invalidResponse
-        }
-        
-        if httpResponse.statusCode >= 400 {
-            let errorMessage = String(data: data, encoding: .utf8) ?? "Unknown error"
-            throw CloudTaskError.apiError(statusCode: httpResponse.statusCode, message: errorMessage)
+        do {
+            let result = try await scheduleFunction.call(data)
+            print("Task scheduled successfully: \(result.data)")
+        } catch {
+            let nsError = error as NSError
+            throw CloudTaskError.apiError(
+                statusCode: nsError.code, 
+                message: nsError.localizedDescription
+            )
         }
     }
 }

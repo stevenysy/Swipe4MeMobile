@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		3E01368F2E1395A9009EACBB /* FirebaseFunctions in Frameworks */ = {isa = PBXBuildFile; productRef = 3E01368E2E1395A9009EACBB /* FirebaseFunctions */; };
 		3EBA29B82DC92DEC00C5A480 /* FirebaseAnalytics in Frameworks */ = {isa = PBXBuildFile; productRef = 3EBA29B72DC92DEC00C5A480 /* FirebaseAnalytics */; };
 		3EBA29BA2DC92DEC00C5A480 /* FirebaseAppCheck in Frameworks */ = {isa = PBXBuildFile; productRef = 3EBA29B92DC92DEC00C5A480 /* FirebaseAppCheck */; };
 		3EBA29BC2DC92DEC00C5A480 /* FirebaseAppDistribution-Beta in Frameworks */ = {isa = PBXBuildFile; productRef = 3EBA29BB2DC92DEC00C5A480 /* FirebaseAppDistribution-Beta */; };
@@ -98,6 +99,7 @@
 				3EBA29C22DC92DEC00C5A480 /* FirebaseCrashlytics in Frameworks */,
 				3EBA29D42DC92DEC00C5A480 /* FirebaseStorage in Frameworks */,
 				3EFEB9762DCA7E6200EDA6FB /* GoogleSignInSwift in Frameworks */,
+				3E01368F2E1395A9009EACBB /* FirebaseFunctions in Frameworks */,
 				3EFEB9742DCA7E6200EDA6FB /* GoogleSignIn in Frameworks */,
 				3EBA29D62DC92DEC00C5A480 /* FirebaseVertexAI in Frameworks */,
 				3EBA29C82DC92DEC00C5A480 /* FirebaseFirestore in Frameworks */,
@@ -185,6 +187,7 @@
 				3EBA29D52DC92DEC00C5A480 /* FirebaseVertexAI */,
 				3EFEB9732DCA7E6200EDA6FB /* GoogleSignIn */,
 				3EFEB9752DCA7E6200EDA6FB /* GoogleSignInSwift */,
+				3E01368E2E1395A9009EACBB /* FirebaseFunctions */,
 			);
 			productName = Swipe4MeMobile;
 			productReference = 3E0E1F382DC929E800329B38 /* Swipe4MeMobile.app */;
@@ -655,6 +658,11 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		3E01368E2E1395A9009EACBB /* FirebaseFunctions */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 3EBA29B62DC92DEC00C5A480 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseFunctions;
+		};
 		3EBA29B72DC92DEC00C5A480 /* FirebaseAnalytics */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 3EBA29B62DC92DEC00C5A480 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;

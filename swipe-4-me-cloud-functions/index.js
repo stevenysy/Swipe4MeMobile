@@ -8,7 +8,7 @@
  */
 
 const { setGlobalOptions } = require("firebase-functions");
-const { onRequest } = require("firebase-functions/https");
+const { onRequest, onCall } = require("firebase-functions/https");
 const logger = require("firebase-functions/logger");
 const functions = require("firebase-functions");
 const admin = require("firebase-admin");
@@ -100,22 +100,31 @@ exports.updateRequestStatus = functions.https.onRequest(async (req, res) => {
  * Schedules a Cloud Task to update request status at meeting time
  * Called when a request is accepted
  */
-exports.scheduleRequestStatusUpdate = functions.https.onRequest(
-  async (req, res) => {
+exports.scheduleRequestStatusUpdate = functions.https.onCall(
+  async (data, context) => {
+    // Authentication is automatically handled by Firebase
+    // You can check if user is authenticated: context.auth
+
+    // Firebase wraps the data in a 'data' field for onCall functions
+    const { requestId, meetingTime } = data.data;
+
+    console.log("Extracted requestId:", requestId);
+    console.log("Extracted meetingTime:", meetingTime);
+
+    if (!requestId || !meetingTime) {
+      console.log(
+        "Missing data - requestId:",
+        !!requestId,
+        "meetingTime:",
+        !!meetingTime
+      );
+      throw new functions.https.HttpsError(
+        "invalid-argument",
+        "requestId and meetingTime are required"
+      );
+    }
+
     try {
-      // Only allow POST requests
-      if (req.method !== "POST") {
-        res.status(405).send("Method Not Allowed");
-        return;
-      }
-
-      const { requestId, meetingTime } = req.body;
-
-      if (!requestId || !meetingTime) {
-        res.status(400).send("requestId and meetingTime are required");
-        return;
-      }
-
       console.log(`Scheduling task for request ${requestId} at ${meetingTime}`);
 
       // Initialize Cloud Tasks client
@@ -157,14 +166,17 @@ exports.scheduleRequestStatusUpdate = functions.https.onRequest(
       const [response] = await client.createTask({ parent, task });
 
       console.log(`Created task ${response.name}`);
-      res.status(200).json({
+      return {
         success: true,
         taskName: response.name,
         message: "Task scheduled successfully",
-      });
+      };
     } catch (error) {
       console.error("Error scheduling task:", error);
-      res.status(500).send(`Error scheduling task: ${error.message}`);
+      throw new functions.https.HttpsError(
+        "internal",
+        `Error scheduling task: ${error.message}`
+      );
     }
   }
 );
