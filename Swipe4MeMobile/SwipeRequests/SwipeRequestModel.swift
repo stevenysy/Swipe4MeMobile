@@ -33,6 +33,7 @@ struct SwipeRequest: Codable, Identifiable, Equatable, Hashable {
 
 enum RequestStatus: String, Codable, CaseIterable {
     case open
+    case scheduled
     case inProgress
     case awaitingReview
     case complete
@@ -42,6 +43,8 @@ enum RequestStatus: String, Codable, CaseIterable {
         switch self {
         case .open:
             return "Open"
+        case .scheduled:
+            return "Scheduled"
         case .inProgress:
             return "In Progress"
         case .awaitingReview:
@@ -58,6 +61,7 @@ extension RequestStatus {
     var color: Color {
         switch self {
         case .open: .green
+        case .scheduled: .cyan
         case .inProgress: .blue
         case .awaitingReview: .orange
         case .complete: .purple

@@ -69,9 +69,15 @@ struct OpenRequestCardView: View {
 
         var updatedRequest = request
         updatedRequest.swiperId = userId
-        updatedRequest.status = .inProgress
+        updatedRequest.status = .scheduled
 
         SwipeRequestManager.shared.addSwipeRequestToDatabase(swipeRequest: updatedRequest, isEdit: true)
+        
+        // Schedule cloud task to trigger at meeting time
+        if let requestId = updatedRequest.id {
+            SwipeRequestManager.shared.scheduleCloudTaskForRequest(requestId: requestId, meetingTime: updatedRequest.meetingTime)
+        }
+        
         snackbarManager.show(title: "Request accepted", style: .success)
     }
 }
