@@ -13,6 +13,7 @@ struct SwipeRequestCardView: View {
     var isExpanded: Bool = false
     var onDelete: () -> Void = {}
     var onEdit: () -> Void = {}
+    var onSwiped: () -> Void = {}  // New action for "Swiped!" button
     var isRequesterCard: Bool = true  // true for requester requests, false for swiper requests
 
     @Environment(SnackbarManager.self) private var snackbarManager
@@ -76,6 +77,11 @@ struct SwipeRequestCardView: View {
         print("deleting swipe request with id \(String(describing: request.id))")
         onDelete()
     }
+    
+    private func handleSwiped() {
+        print("marking request as swiped: \(String(describing: request.id))")
+        onSwiped()
+    }
 
     @ViewBuilder
     private var readOnlyStateView: some View {
@@ -92,6 +98,42 @@ struct SwipeRequestCardView: View {
             UserInfoView(userId: request.requesterId)
         }
 
+        // Modular action buttons based on status and user role
+        actionButtonsForStatus
+    }
+    
+    @ViewBuilder
+    private var actionButtonsForStatus: some View {
+        switch request.status {
+        case .inProgress:
+            inProgressActionButtons
+        default:
+            defaultActionButtons
+        }
+    }
+    
+    @ViewBuilder
+    private var inProgressActionButtons: some View {
+        HStack {
+            if isRequesterCard {
+                Button("Swiped!") {
+                    handleSwiped()
+                }
+                .buttonStyle(.borderedProminent)
+                .frame(maxWidth: .infinity)
+            }
+            // Note: No edit button for in-progress requests
+            
+            Button("Delete", role: .destructive) {
+                handleDelete()
+            }
+            .buttonStyle(.bordered)
+            .frame(maxWidth: .infinity)
+        }
+    }
+    
+    @ViewBuilder
+    private var defaultActionButtons: some View {
         HStack {
             Button("Edit") {
                 handleEdit()
@@ -150,26 +192,52 @@ struct SwipeRequestCardView: View {
 }
 
 #Preview {
-    VStack(spacing: 20) {
-        if let request = SwipeRequest.mockRequests.first {
-            // Requester card (default behavior)
-            SwipeRequestCardView(request: request, isExpanded: false, isRequesterCard: true)
-            SwipeRequestCardView(
-                request: request, isExpanded: true, onDelete: {
-                    print("Delete action triggered for request: \(request.id ?? "N/A")")
-                }, onEdit: {
-                    print("Edit submitted for request: \(request.id ?? "N/A")")
-                }, isRequesterCard: true)
-            
-            // Swiper card (shows requester info)
-            SwipeRequestCardView(request: request, isExpanded: true, onDelete: {
-                print("Delete action triggered for swiper request: \(request.id ?? "N/A")")
-            }, onEdit: {
-                print("Edit submitted for swiper request: \(request.id ?? "N/A")")
-            }, isRequesterCard: false)
-        }
-    }
-    .padding()
-    .background(Color(.systemGroupedBackground))
-    .environment(SnackbarManager())
+//    VStack(spacing: 20) {
+//        if let openRequest = SwipeRequest.mockRequests.first,
+//           let inProgressRequest = SwipeRequest.mockRequests.first {
+//            
+//            // Create an in-progress version for testing
+//            var inProgressRequestCopy = inProgressRequest
+//            inProgressRequestCopy.status = .inProgress
+//            
+//            // Open request (default behavior)
+//            SwipeRequestCardView(
+//                request: openRequest, 
+//                isExpanded: true, 
+//                onDelete: {
+//                    print("Delete action triggered for open request: \(openRequest.id ?? "N/A")")
+//                }, 
+//                onEdit: {
+//                    print("Edit submitted for open request: \(openRequest.id ?? "N/A")")
+//                }, 
+//                isRequesterCard: true
+//            )
+//            
+//            // In-progress request (requester view - shows "Swiped!" button)
+//            SwipeRequestCardView(
+//                request: inProgressRequestCopy, 
+//                isExpanded: true, 
+//                onDelete: {
+//                    print("Delete action triggered for in-progress request: \(inProgressRequestCopy.id ?? "N/A")")
+//                }, 
+//                onSwiped: {
+//                    print("Swiped action triggered for request: \(inProgressRequestCopy.id ?? "N/A")")
+//                },
+//                isRequesterCard: true
+//            )
+//            
+//            // In-progress request (swiper view - no "Swiped!" button)
+//            SwipeRequestCardView(
+//                request: inProgressRequestCopy, 
+//                isExpanded: true, 
+//                onDelete: {
+//                    print("Delete action triggered for swiper in-progress request: \(inProgressRequestCopy.id ?? "N/A")")
+//                }, 
+//                isRequesterCard: false
+//            )
+//        }
+//    }
+//    .padding()
+//    .background(Color(.systemGroupedBackground))
+//    .environment(SnackbarManager())
 }
