@@ -27,9 +27,9 @@ struct UserDashboardView: View {
                     .frame(maxWidth: .infinity)
                     .frame(height: geometry.size.height / 4)
 
-                    // MARK: - My Upcoming Sessions Section
+                    // MARK: - Today's Sessions Section
                     if let userId = authManager.user?.uid {
-                        UserRequestsListView(userId: userId)
+                        TodaysSessionsView(userId: userId)
                             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
                     } else {
                         Text("Loading...")
@@ -58,58 +58,52 @@ struct UserDashboardView: View {
     }
 }
 
-// Filter options for user requests
-enum RequestFilter: String, CaseIterable {
-    case requester = "Requester"
-    case swiper = "Swiper"
-}
-
-// A private view that handles the Firestore queries for user requests
-private struct UserRequestsListView: View {
-    @State private var currentFilter: RequestFilter? = nil
+// A private view that handles the Firestore queries for today's sessions
+private struct TodaysSessionsView: View {
     @Environment(SnackbarManager.self) private var snackbarManager
     
     let userId: String
     
-    // We'll use multiple queries and switch between them based on filter
-    @FirestoreQuery var requesterRequests: [SwipeRequest]
-    @FirestoreQuery var swiperRequests: [SwipeRequest]
+    // Queries for today's sessions
+    @FirestoreQuery var requesterTodaySessions: [SwipeRequest]
+    @FirestoreQuery var swiperTodaySessions: [SwipeRequest]
     
-    // Combined requests based on current filter
-    private var filteredRequests: [SwipeRequest] {
-        switch currentFilter {
-        case nil:
-            // Show all requests when no filter is active
-            let combined = requesterRequests + swiperRequests
-            return combined.sorted { $0.meetingTime.dateValue() < $1.meetingTime.dateValue() }
-        case .requester:
-            return requesterRequests
-        case .swiper:
-            return swiperRequests
-        }
+    // Combined and sorted today's sessions
+    private var todaysSessions: [SwipeRequest] {
+        let combined = requesterTodaySessions + swiperTodaySessions
+        return combined.sorted { $0.meetingTime.dateValue() < $1.meetingTime.dateValue() }
     }
     
     init(userId: String) {
         self.userId = userId
         
-        let now = Timestamp()
+        // Get today's date range
+        let calendar = Calendar.current
+        let today = Date()
+        let startOfDay = calendar.startOfDay(for: today)
+        let endOfDay = calendar.date(byAdding: .day, value: 1, to: startOfDay)!
         
-        // Query for requests where user is the requester (future only)
-        self._requesterRequests = FirestoreQuery(
+        let startTimestamp = Timestamp(date: startOfDay)
+        let endTimestamp = Timestamp(date: endOfDay)
+        
+        // Query for requests where user is the requester (today only)
+        self._requesterTodaySessions = FirestoreQuery(
             collectionPath: "swipeRequests",
             predicates: [
                 .where("requesterId", isEqualTo: userId),
-                .where("meetingTime", isGreaterThan: now),
+                .where("meetingTime", isGreaterThanOrEqualTo: startTimestamp),
+                .where("meetingTime", isLessThan: endTimestamp),
                 .order(by: "meetingTime", descending: false)
             ]
         )
         
-        // Query for requests where user is the swiper (future only)
-        self._swiperRequests = FirestoreQuery(
+        // Query for requests where user is the swiper (today only)
+        self._swiperTodaySessions = FirestoreQuery(
             collectionPath: "swipeRequests",
             predicates: [
                 .where("swiperId", isEqualTo: userId),
-                .where("meetingTime", isGreaterThan: now),
+                .where("meetingTime", isGreaterThanOrEqualTo: startTimestamp),
+                .where("meetingTime", isLessThan: endTimestamp),
                 .order(by: "meetingTime", descending: false)
             ]
         )
@@ -118,65 +112,34 @@ private struct UserRequestsListView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Text("My Upcoming Sessions")
+                Text("Today's Sessions")
                     .font(.title2)
                     .fontWeight(.semibold)
                     .padding(.horizontal)
                 Spacer()
-                
-                // TODO: Add button to create a new request
             }
             
-            // Mutually exclusive filter buttons
-            HStack(spacing: 8) {
-                ForEach(RequestFilter.allCases, id: \.self) { filter in
-                    Button(action: {
-                        withAnimation(.easeInOut(duration: 0.2)) {
-                            if currentFilter == filter {
-                                // If this filter is already active, turn it off
-                                currentFilter = nil
-                            } else {
-                                // Switch to this filter
-                                currentFilter = filter
-                            }
-                        }
-                    }) {
-                        Text(filter.rawValue)
-                            .font(.subheadline)
-                            .fontWeight(.medium)
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 8)
-                            .background {
-                                RoundedRectangle(cornerRadius: 20)
-                                    .fill(currentFilter == filter ? 
-                                          Color.accentColor : Color.secondary.opacity(0.2))
-                            }
-                            .foregroundColor(currentFilter == filter ? 
-                                           .white : .primary)
-                    }
-                    .buttonStyle(.plain)
-                }
-                Spacer()
-            }
-            .padding(.horizontal)
-            
-            SwipeRequestGroupedListView(
-                requests: filteredRequests,
+            SwipeRequestListView(
+                requests: todaysSessions,
                 userId: userId,
                 emptyStateView: {
                     VStack(spacing: 16) {
-                        Image(systemName: "calendar.badge.exclamationmark")
+                        Spacer()
+
+                        Image(systemName: "calendar.day.timeline.leading")
                             .font(.system(size: 48))
                             .foregroundColor(.secondary)
                         
-                        Text("No Upcoming Sessions")
+                        Text("No Sessions Today")
                             .font(.headline)
                             .foregroundColor(.secondary)
                         
-                        Text("You don't have any scheduled swipe sessions yet.")
+                        Text("You don't have any swipe sessions scheduled for today.")
                             .font(.subheadline)
                             .foregroundColor(.secondary)
                             .multilineTextAlignment(.center)
+
+                        Spacer()
                     }
                     .padding()
                     .frame(maxWidth: .infinity)
@@ -184,7 +147,6 @@ private struct UserRequestsListView: View {
                 }
             )
         }
-        .animation(.easeInOut, value: currentFilter)
     }
 }
 
