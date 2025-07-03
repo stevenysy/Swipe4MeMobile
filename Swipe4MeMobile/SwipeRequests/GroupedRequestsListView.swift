@@ -89,7 +89,7 @@ struct SwipeRequestListView<EmptyContent: View>: View {
     @ViewBuilder let emptyStateView: () -> EmptyContent
     
     @State private var selectedRequest: SwipeRequest?
-    @State private var requestToDelete: SwipeRequest?
+    @State private var requestToCancel: SwipeRequest?
     @State private var requestToMarkSwiped: SwipeRequest?
     @Environment(SnackbarManager.self) private var snackbarManager
 
@@ -103,22 +103,22 @@ struct SwipeRequestListView<EmptyContent: View>: View {
         }
         .animation(.spring(response: 0.45, dampingFraction: 0.75), value: selectedRequest)
         .alert(
-            "Delete Request", isPresented: .constant(requestToDelete != nil),
-            presenting: requestToDelete
+            "Cancel Request", isPresented: .constant(requestToCancel != nil),
+            presenting: requestToCancel
         ) { request in
-            Button("Delete", role: .destructive) {
-                if let requestToDelete = requestToDelete {
-                    SwipeRequestManager.shared.deleteRequest(requestToDelete)
-                    snackbarManager.show(title: "Request Deleted", style: .success)
+            Button("Cancel Request", role: .destructive) {
+                if let requestToCancel = requestToCancel {
+                    SwipeRequestManager.shared.cancelRequest(request: requestToCancel)
+                    snackbarManager.show(title: "Request Cancelled", style: .success)
                 }
-                self.requestToDelete = nil
+                self.requestToCancel = nil
             }
-            Button("Cancel", role: .cancel) {
-                self.requestToDelete = nil
+            Button("Keep Request", role: .cancel) {
+                self.requestToCancel = nil
             }
         } message: { request in
             Text(
-                "Are you sure you want to delete this swipe request for \(request.location.rawValue) at \(request.meetingTime.dateValue(), style: .time)? This action cannot be undone."
+                "Are you sure you want to cancel this swipe request for \(request.location.rawValue) at \(request.meetingTime.dateValue(), style: .time)? This action cannot be undone."
             )
         }
         .alert(
@@ -156,7 +156,7 @@ struct SwipeRequestListView<EmptyContent: View>: View {
                             request: request,
                             isExpanded: selectedRequest?.id == request.id,
                             onDelete: {
-                                self.requestToDelete = request
+                                self.requestToCancel = request
                             },
                             onEdit: {
                                 withAnimation(.spring(response: 0.45, dampingFraction: 0.75)) {
@@ -207,7 +207,7 @@ struct SwipeRequestGroupedListView<EmptyContent: View>: View {
     @ViewBuilder let emptyStateView: () -> EmptyContent
     
     @State private var selectedRequest: SwipeRequest?
-    @State private var requestToDelete: SwipeRequest?
+    @State private var requestToCancel: SwipeRequest?
     @State private var requestToMarkSwiped: SwipeRequest?
     @Environment(SnackbarManager.self) private var snackbarManager
 
@@ -231,22 +231,22 @@ struct SwipeRequestGroupedListView<EmptyContent: View>: View {
         }
         .animation(.spring(response: 0.45, dampingFraction: 0.75), value: selectedRequest)
         .alert(
-            "Delete Request", isPresented: .constant(requestToDelete != nil),
-            presenting: requestToDelete
+            "Cancel Request", isPresented: .constant(requestToCancel != nil),
+            presenting: requestToCancel
         ) { request in
-            Button("Delete", role: .destructive) {
-                if let requestToDelete = requestToDelete {
-                    SwipeRequestManager.shared.deleteRequest(requestToDelete)
-                    snackbarManager.show(title: "Request Deleted", style: .success)
+            Button("Cancel Request", role: .destructive) {
+                if let requestToCancel = requestToCancel {
+                    SwipeRequestManager.shared.cancelRequest(request: requestToCancel)
+                    snackbarManager.show(title: "Request Cancelled", style: .success)
                 }
-                self.requestToDelete = nil
+                self.requestToCancel = nil
             }
-            Button("Cancel", role: .cancel) {
-                self.requestToDelete = nil
+            Button("Keep Request", role: .cancel) {
+                self.requestToCancel = nil
             }
         } message: { request in
             Text(
-                "Are you sure you want to delete this swipe request for \(request.location.rawValue) at \(request.meetingTime.dateValue(), style: .time)? This action cannot be undone."
+                "Are you sure you want to cancel this swipe request for \(request.location.rawValue) at \(request.meetingTime.dateValue(), style: .time)? This action cannot be undone."
             )
         }
         .alert(
@@ -286,7 +286,7 @@ struct SwipeRequestGroupedListView<EmptyContent: View>: View {
                                     request: request,
                                     isExpanded: selectedRequest?.id == request.id,
                                     onDelete: {
-                                        self.requestToDelete = request
+                                        self.requestToCancel = request
                                     },
                                     onEdit: {
                                         withAnimation(.spring(response: 0.45, dampingFraction: 0.75)) {

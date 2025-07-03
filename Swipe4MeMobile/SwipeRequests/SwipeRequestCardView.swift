@@ -124,7 +124,7 @@ struct SwipeRequestCardView: View {
             }
             // Note: No edit button for in-progress requests
             
-            Button("Delete", role: .destructive) {
+            Button("Cancel", role: .destructive) {
                 handleDelete()
             }
             .buttonStyle(.bordered)
@@ -141,7 +141,7 @@ struct SwipeRequestCardView: View {
             .buttonStyle(.bordered)
             .frame(maxWidth: .infinity)
 
-            Button("Delete", role: .destructive) {
+            Button("Cancel", role: .destructive) {
                 onDelete()
             }
             .buttonStyle(.bordered)

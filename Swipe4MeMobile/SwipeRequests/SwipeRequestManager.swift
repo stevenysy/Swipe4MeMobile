@@ -81,6 +81,24 @@ final class SwipeRequestManager {
             }
         }
     }
+
+    func cancelRequest(request: SwipeRequest) {
+        guard let id = request.id else {
+            self.errorMessage = "Request has no valid document ID."
+            return
+        }
+
+        db.collection("swipeRequests").document(id).updateData([
+            "status": RequestStatus.canceled.rawValue
+        ]) { error in
+            print("Error cancelling request: \(error?.localizedDescription ?? "Unknown error")")
+            if let error = error {
+                self.errorMessage = error.localizedDescription   // <- Triggers alert
+            } else {
+                self.errorMessage = ""   // Clear any previous error
+            }
+        }
+    }
     
     // MARK: - Cloud Task Scheduling
     
