@@ -10,6 +10,7 @@ import FirebaseFirestore
 
 // Filter options for user requests
 enum RequestFilter: String, CaseIterable {
+    case all = "All"
     case requester = "Requester"
     case swiper = "Swiper"
 }
@@ -23,7 +24,7 @@ enum ActivityFilter: String, CaseIterable {
 
 // Date filter options
 enum DateFilter: String, CaseIterable {
-    case upcoming = "Upcoming"
+    case upcoming = "Future"
     case past = "Past"
     case all = "All"
 }
@@ -72,7 +73,7 @@ struct MyRequestsView: View {
 
 // A private view that handles the Firestore queries for user requests
 private struct UserRequestsListView: View {
-    @State private var currentFilter: RequestFilter? = nil
+    @State private var currentFilter: RequestFilter = .all
     @State private var currentActivityFilter: ActivityFilter = .active
     @State private var currentDateFilter: DateFilter = .upcoming
     @Environment(SnackbarManager.self) private var snackbarManager
@@ -88,7 +89,7 @@ private struct UserRequestsListView: View {
         // First, get all requests based on role filter
         let roleFilteredRequests: [SwipeRequest]
         switch currentFilter {
-        case nil:
+        case .all:
             roleFilteredRequests = requesterRequests + swiperRequests
         case .requester:
             roleFilteredRequests = requesterRequests
@@ -159,114 +160,141 @@ private struct UserRequestsListView: View {
     
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            // Primary filters row (Activity and Date)
-            HStack {
-                // Activity filter dropdown
-                Menu {
-                    ForEach(ActivityFilter.allCases, id: \.self) { filter in
-                        Button(action: {
-                            withAnimation(.easeInOut(duration: 0.2)) {
-                                currentActivityFilter = filter
-                            }
-                        }) {
-                            HStack {
-                                Text(filter.rawValue)
-                                if currentActivityFilter == filter {
-                                    Spacer()
-                                    Image(systemName: "checkmark")
+            // All filters in one row with labels
+            VStack(alignment: .leading, spacing: 8) {
+                // Filter labels
+                HStack(spacing: 8) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Status")
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                            .fontWeight(.medium)
+                        
+                        // Activity filter dropdown
+                        Menu {
+                            ForEach(ActivityFilter.allCases, id: \.self) { filter in
+                                Button(action: {
+                                    withAnimation(.easeInOut(duration: 0.2)) {
+                                        currentActivityFilter = filter
+                                    }
+                                }) {
+                                    HStack {
+                                        Text(filter.rawValue)
+                                        if currentActivityFilter == filter {
+                                            Spacer()
+                                            Image(systemName: "checkmark")
+                                        }
+                                    }
                                 }
                             }
-                        }
-                    }
-                } label: {
-                    HStack(spacing: 4) {
-                        Text(currentActivityFilter.rawValue)
-                            .font(.subheadline)
-                            .fontWeight(.medium)
-                        Image(systemName: "chevron.down")
-                            .font(.caption)
-                            .imageScale(.small)
-                    }
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 8)
-                    .background {
-                        RoundedRectangle(cornerRadius: 20)
-                            .fill(Color.accentColor)
-                    }
-                    .foregroundColor(.white)
-                }
-                .buttonStyle(.plain)
-                
-                // Date filter dropdown
-                Menu {
-                    ForEach(DateFilter.allCases, id: \.self) { filter in
-                        Button(action: {
-                            withAnimation(.easeInOut(duration: 0.2)) {
-                                currentDateFilter = filter
+                        } label: {
+                            HStack(spacing: 4) {
+                                Text(currentActivityFilter.rawValue)
+                                    .font(.subheadline)
+                                    .fontWeight(.medium)
+                                Image(systemName: "chevron.down")
+                                    .font(.caption)
+                                    .imageScale(.small)
                             }
-                        }) {
-                            HStack {
-                                Text(filter.rawValue)
-                                if currentDateFilter == filter {
-                                    Spacer()
-                                    Image(systemName: "checkmark")
-                                }
-                            }
-                        }
-                    }
-                } label: {
-                    HStack(spacing: 4) {
-                        Text(currentDateFilter.rawValue)
-                            .font(.subheadline)
-                            .fontWeight(.medium)
-                        Image(systemName: "chevron.down")
-                            .font(.caption)
-                            .imageScale(.small)
-                    }
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 8)
-                    .background {
-                        RoundedRectangle(cornerRadius: 20)
-                            .fill(Color.accentColor)
-                    }
-                    .foregroundColor(.white)
-                }
-                .buttonStyle(.plain)
-                
-                Spacer()
-            }
-            .padding(.horizontal)
-            
-            // Secondary filters row (Role filters)
-            HStack(spacing: 8) {
-                ForEach(RequestFilter.allCases, id: \.self) { filter in
-                    Button(action: {
-                        withAnimation(.easeInOut(duration: 0.2)) {
-                            if currentFilter == filter {
-                                // If this filter is already active, turn it off
-                                currentFilter = nil
-                            } else {
-                                // Switch to this filter
-                                currentFilter = filter
-                            }
-                        }
-                    }) {
-                        Text(filter.rawValue)
-                            .font(.subheadline)
-                            .fontWeight(.medium)
                             .padding(.horizontal, 16)
                             .padding(.vertical, 8)
                             .background {
                                 RoundedRectangle(cornerRadius: 20)
-                                    .fill(currentFilter == filter ? 
-                                          Color.accentColor : Color.secondary.opacity(0.2))
+                                    .stroke(Color.accentColor, lineWidth: 1.5)
                             }
-                            .foregroundColor(currentFilter == filter ? 
-                                           .white : .primary)
+                            .foregroundColor(.accentColor)
+                        }
+                        .buttonStyle(.plain)
                     }
-                    .buttonStyle(.plain)
+                    
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Time")
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                            .fontWeight(.medium)
+                        
+                        // Date filter dropdown
+                        Menu {
+                            ForEach(DateFilter.allCases, id: \.self) { filter in
+                                Button(action: {
+                                    withAnimation(.easeInOut(duration: 0.2)) {
+                                        currentDateFilter = filter
+                                    }
+                                }) {
+                                    HStack {
+                                        Text(filter.rawValue)
+                                        if currentDateFilter == filter {
+                                            Spacer()
+                                            Image(systemName: "checkmark")
+                                        }
+                                    }
+                                }
+                            }
+                        } label: {
+                            HStack(spacing: 4) {
+                                Text(currentDateFilter.rawValue)
+                                    .font(.subheadline)
+                                    .fontWeight(.medium)
+                                Image(systemName: "chevron.down")
+                                    .font(.caption)
+                                    .imageScale(.small)
+                            }
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 8)
+                            .background {
+                                RoundedRectangle(cornerRadius: 20)
+                                    .stroke(Color.accentColor, lineWidth: 1.5)
+                            }
+                            .foregroundColor(.accentColor)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Role")
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                            .fontWeight(.medium)
+                        
+                        // Role filter dropdown
+                        Menu {
+                            ForEach(RequestFilter.allCases, id: \.self) { filter in
+                                Button(action: {
+                                    withAnimation(.easeInOut(duration: 0.2)) {
+                                        currentFilter = filter
+                                    }
+                                }) {
+                                    HStack {
+                                        Text(filter.rawValue)
+                                        if currentFilter == filter {
+                                            Spacer()
+                                            Image(systemName: "checkmark")
+                                        }
+                                    }
+                                }
+                            }
+                        } label: {
+                            HStack(spacing: 4) {
+                                Text(currentFilter.rawValue)
+                                    .font(.subheadline)
+                                    .fontWeight(.medium)
+                                Image(systemName: "chevron.down")
+                                    .font(.caption)
+                                    .imageScale(.small)
+                            }
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 8)
+                            .background {
+                                RoundedRectangle(cornerRadius: 20)
+                                    .stroke(Color.accentColor, lineWidth: 1.5)
+                            }
+                            .foregroundColor(.accentColor)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    
+                    Spacer()
                 }
-                Spacer()
             }
             .padding(.horizontal)
             
