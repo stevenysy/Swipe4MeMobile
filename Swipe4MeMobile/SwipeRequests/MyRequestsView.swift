@@ -274,23 +274,26 @@ private struct UserRequestsListView: View {
                 requests: filteredRequests,
                 userId: userId,
                 emptyStateView: {
-                    VStack(spacing: 16) {
-                        Image(systemName: emptyStateIcon)
-                            .font(.system(size: 48))
-                            .foregroundColor(.secondary)
-                        
-                        Text(emptyStateTitle)
-                            .font(.headline)
-                            .foregroundColor(.secondary)
-                        
-                        Text(emptyStateMessage)
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
-                            .multilineTextAlignment(.center)
+                    VStack {
+                        Spacer()
+                        VStack(spacing: 16) {
+                            Image(systemName: emptyStateIcon)
+                                .font(.system(size: 48))
+                                .foregroundColor(.secondary)
+                            
+                            Text(emptyStateTitle)
+                                .font(.headline)
+                                .foregroundColor(.secondary)
+                            
+                            Text(emptyStateMessage)
+                                .font(.subheadline)
+                                .foregroundColor(.secondary)
+                                .multilineTextAlignment(.center)
+                        }
+                        .padding()
+                        Spacer()
                     }
-                    .padding()
-                    .frame(maxWidth: .infinity)
-                    .frame(minHeight: 200)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
             )
         }
