@@ -42,7 +42,7 @@ final class NotificationManager {
                 "fcmToken": token,
                 "lastTokenUpdate": Timestamp()
             ], merge: true)
-print("FCM token updated successfully")
+            print("FCM token updated successfully")
         } catch {
             print("Failed to update FCM token: \(error)")
         }
