@@ -36,65 +36,67 @@ setGlobalOptions({ maxInstances: 10 });
  * Updates a swipe request status to "inProgress"
  * Called by Cloud Task at the scheduled meeting time
  */
-exports.updateRequestStatus = functions.https.onRequest(async (req, res) => {
-  try {
-    // Only allow POST requests
-    if (req.method !== "POST") {
-      res.status(405).send("Method Not Allowed");
-      return;
-    }
+exports.updateRequestStatusToInProgress = functions.https.onRequest(
+  async (req, res) => {
+    try {
+      // Only allow POST requests
+      if (req.method !== "POST") {
+        res.status(405).send("Method Not Allowed");
+        return;
+      }
 
-    const { requestId } = req.body;
+      const { requestId } = req.body;
 
-    if (!requestId) {
-      res.status(400).send("requestId is required");
-      return;
-    }
+      if (!requestId) {
+        res.status(400).send("requestId is required");
+        return;
+      }
 
-    console.log(`Processing request ID: ${requestId}`);
+      console.log(`Processing request ID: ${requestId}`);
 
-    // Get the current request
-    const requestDoc = await db
-      .collection("swipeRequests")
-      .doc(requestId)
-      .get();
+      // Get the current request
+      const requestDoc = await db
+        .collection("swipeRequests")
+        .doc(requestId)
+        .get();
 
-    if (!requestDoc.exists) {
-      console.log(`Request ${requestId} not found`);
-      res.status(404).send("Request not found");
-      return;
-    }
+      if (!requestDoc.exists) {
+        console.log(`Request ${requestId} not found`);
+        res.status(404).send("Request not found");
+        return;
+      }
 
-    const requestData = requestDoc.data();
-    console.log(`Current status: ${requestData.status}`);
+      const requestData = requestDoc.data();
+      console.log(`Current status: ${requestData.status}`);
 
-    // Only update if the request is still scheduled
-    if (requestData.status !== "scheduled") {
-      console.log(
-        `Request ${requestId} is no longer scheduled (current status: ${requestData.status})`
-      );
-      res
-        .status(200)
-        .send(
-          `Request status is already ${requestData.status}, no update needed`
+      // Only update if the request is still scheduled
+      if (requestData.status !== "scheduled") {
+        console.log(
+          `Request ${requestId} is no longer scheduled (current status: ${requestData.status})`
         );
-      return;
+        res
+          .status(200)
+          .send(
+            `Request status is already ${requestData.status}, no update needed`
+          );
+        return;
+      }
+
+      // Update the status to inProgress
+      await db.collection("swipeRequests").doc(requestId).update({
+        status: "inProgress",
+      });
+
+      console.log(
+        `Successfully updated request ${requestId} status to inProgress`
+      );
+      res.status(200).send("Status updated successfully");
+    } catch (error) {
+      console.error("Error updating request status:", error);
+      res.status(500).send(`Error updating status: ${error.message}`);
     }
-
-    // Update the status to inProgress
-    await db.collection("swipeRequests").doc(requestId).update({
-      status: "inProgress",
-    });
-
-    console.log(
-      `Successfully updated request ${requestId} status to inProgress`
-    );
-    res.status(200).send("Status updated successfully");
-  } catch (error) {
-    console.error("Error updating request status:", error);
-    res.status(500).send(`Error updating status: ${error.message}`);
   }
-});
+);
 
 /**
  * Schedules a Cloud Task to update request status at meeting time
@@ -139,7 +141,7 @@ exports.scheduleRequestStatusUpdate = functions.https.onCall(
       const parent = client.queuePath(projectId, location, queueName);
 
       // Cloud Function URL for the status update
-      const url = `https://us-central1-${projectId}.cloudfunctions.net/updateRequestStatus`;
+      const url = `https://us-central1-${projectId}.cloudfunctions.net/updateRequestStatusToInProgress`;
 
       // Task payload
       const payload = JSON.stringify({ requestId });
