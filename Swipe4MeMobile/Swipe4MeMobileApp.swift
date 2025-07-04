@@ -6,6 +6,7 @@
 //
 
 import FirebaseCore
+import FirebaseMessaging
 import SwiftUI
 
 class AppDelegate: NSObject, UIApplicationDelegate {
@@ -15,6 +16,18 @@ class AppDelegate: NSObject, UIApplicationDelegate {
     ) -> Bool {
         FirebaseApp.configure()
         return true
+    }
+    
+    // APNS token received - pass to FCM
+    func application(_ application: UIApplication,
+                     didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
+        Messaging.messaging().apnsToken = deviceToken
+    }
+    
+    // APNS registration failed
+    func application(_ application: UIApplication,
+                     didFailToRegisterForRemoteNotificationsWithError error: Error) {
+        print("Failed to register for remote notifications: \(error)")
     }
 }
 

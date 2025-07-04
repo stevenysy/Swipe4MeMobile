@@ -57,7 +57,6 @@ enum AuthenticationState {
             return false
         }
     }
-    
 }
 
 enum AuthenticationError: LocalizedError {
