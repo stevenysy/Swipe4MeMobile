@@ -2,6 +2,7 @@ import FirebaseFirestore
 import FirebaseMessaging
 import UserNotifications
 import Foundation
+import FirebaseAuth
 
 @MainActor
 final class NotificationManager {
@@ -14,8 +15,11 @@ final class NotificationManager {
     
     func setupNotificationsForUser(_ userId: String) async {
         await requestNotificationPermissions()
-        // Add a small delay to ensure APNS registration completes
-        try? await Task.sleep(nanoseconds: 1_000_000_000) // 1 second
+        await updateFCMToken(for: userId)
+    }
+    
+    func handleTokenRefresh() async {
+        guard let userId = Auth.auth().currentUser?.uid else { return }
         await updateFCMToken(for: userId)
     }
     
