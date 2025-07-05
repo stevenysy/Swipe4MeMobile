@@ -13,4 +13,6 @@ struct SFMUser: Codable, Identifiable {
     var lastName: String
     var email: String
     var profilePictureUrl: String
+    var fcmToken: String?
+    var lastTokenUpdate: Timestamp?
 }

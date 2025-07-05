@@ -8,11 +8,11 @@
  */
 
 const { setGlobalOptions } = require("firebase-functions");
-const { onRequest, onCall } = require("firebase-functions/https");
 const logger = require("firebase-functions/logger");
 const functions = require("firebase-functions");
 const admin = require("firebase-admin");
 const { CloudTasksClient } = require("@google-cloud/tasks");
+const { onDocumentUpdated } = require("firebase-functions/v2/firestore");
 
 admin.initializeApp();
 const db = admin.firestore();
@@ -179,6 +179,50 @@ exports.scheduleRequestStatusUpdate = functions.https.onCall(
         "internal",
         `Error scheduling task: ${error.message}`
       );
+    }
+  }
+);
+
+/**
+ * Sends push notification when someone accepts a swipe request
+ */
+exports.sendAcceptanceNotification = onDocumentUpdated(
+  "swipeRequests/{requestId}",
+  async (event) => {
+    const before = event.data.before.data();
+    const after = event.data.after.data();
+
+    // Check if request was just accepted
+    const wasAccepted =
+      !before.swiperId && after.swiperId && after.status === "scheduled";
+
+    if (!wasAccepted) {
+      return;
+    }
+
+    try {
+      const requesterDoc = await db
+        .collection("users")
+        .doc(after.requesterId)
+        .get();
+
+      const fcmToken = requesterDoc.data()?.fcmToken;
+      if (!fcmToken) {
+        console.log("No FCM token found for requester");
+        return;
+      }
+
+      await admin.messaging().send({
+        token: fcmToken,
+        notification: {
+          title: "Request Accepted!",
+          body: `Someone accepted your swipe request at ${after.location}`,
+        },
+      });
+
+      console.log("Acceptance notification sent successfully");
+    } catch (error) {
+      console.error("Error sending notification:", error);
     }
   }
 );

@@ -26,7 +26,9 @@ struct LoginView: View {
                     let newUser = UserManager.shared.createSfmUserFromGoogleSignIn(firebaseUser: firebaseUser)
                     await UserManager.shared.createNewUser(newUser: newUser)
                 }
-                // Note: UserManager now automatically fetches existing users via auth state listener
+                
+                // Setup notifications after successful sign-in
+                await NotificationManager.shared.setupNotificationsForUser(firebaseUser.uid)
             }
         } label: {
             HStack(alignment: .center, spacing: 0) {
@@ -51,7 +53,9 @@ struct LoginView: View {
                     let newUser = UserManager.shared.createSfmUserFromMicrosoftSignIn(firebaseUser: firebaseUser)
                     await UserManager.shared.createNewUser(newUser: newUser)
                 }
-                // Note: UserManager now automatically fetches existing users via auth state listener
+                
+                // Setup notifications after successful sign-in
+                await NotificationManager.shared.setupNotificationsForUser(firebaseUser.uid)
             }
         } label: {
             HStack(alignment: .center, spacing: 0) {
