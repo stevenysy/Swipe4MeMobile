@@ -41,6 +41,7 @@ enum AuthenticationState {
     func signOut() {
         do {
             try Auth.auth().signOut()
+            ChatManager.shared.stopAllListeners()
         } catch {
             print(error)
             errorMessage = error.localizedDescription
