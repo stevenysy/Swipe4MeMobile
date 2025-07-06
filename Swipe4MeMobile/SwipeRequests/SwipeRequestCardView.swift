@@ -14,11 +14,7 @@ struct SwipeRequestCardView: View {
     var isRequesterCard: Bool = true
 
     @Environment(SnackbarManager.self) private var snackbarManager
-    @State private var isEditing = false
-    @State private var editedLocation: DiningLocation = .commons
-    @State private var editedMeetingTime = Date()
-    @State private var requestToCancel: SwipeRequest?
-    @State private var requestToMarkSwiped: SwipeRequest?
+    @State private var viewModel = SwipeRequestCardViewModel()
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -37,7 +33,7 @@ struct SwipeRequestCardView: View {
             }
 
             if isExpanded {
-                if isEditing {
+                if viewModel.isEditing {
                     editStateView
                 } else {
                     readOnlyStateView
@@ -49,16 +45,14 @@ struct SwipeRequestCardView: View {
         .cornerRadius(12)
         .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
         .alert(
-            "Cancel Request", isPresented: .constant(requestToCancel != nil),
-            presenting: requestToCancel
+            "Cancel Request", isPresented: .constant(viewModel.requestToCancel != nil),
+            presenting: viewModel.requestToCancel
         ) { request in
             Button("Cancel Request", role: .destructive) {
-                SwipeRequestManager.shared.cancelRequest(request: request)
-                snackbarManager.show(title: "Request Cancelled", style: .success)
-                requestToCancel = nil
+                viewModel.confirmCancel(snackbarManager: snackbarManager)
             }
             Button("Keep Request", role: .cancel) {
-                requestToCancel = nil
+                viewModel.cancelDelete()
             }
         } message: { request in
             Text(
@@ -66,51 +60,20 @@ struct SwipeRequestCardView: View {
             )
         }
         .alert(
-            "Confirm Swipe Received", isPresented: .constant(requestToMarkSwiped != nil),
-            presenting: requestToMarkSwiped
+            "Confirm Swipe Received", isPresented: .constant(viewModel.requestToMarkSwiped != nil),
+            presenting: viewModel.requestToMarkSwiped
         ) { request in
             Button("Yes, I got it!", role: .none) {
-                SwipeRequestManager.shared.markRequestAsSwiped(request: request)
-                snackbarManager.show(title: "Marked as Swiped!", style: .success)
-                requestToMarkSwiped = nil
+                viewModel.confirmSwiped(snackbarManager: snackbarManager)
             }
             Button("Not yet", role: .cancel) {
-                requestToMarkSwiped = nil
+                viewModel.cancelSwiped()
             }
         } message: { request in
             Text(
                 "Have you already received your swipe from the swiper for \(request.location.rawValue)?"
             )
         }
-    }
-
-    private func handleEdit() {
-        editedLocation = request.location
-        editedMeetingTime = request.meetingTime.dateValue()
-        withAnimation(.spring(response: 0.45, dampingFraction: 0.75)) {
-            isEditing = true
-        }
-    }
-
-    private func handleSubmit() {
-        var updatedRequest = request
-        updatedRequest.location = editedLocation
-        updatedRequest.meetingTime = Timestamp(date: editedMeetingTime)
-
-        SwipeRequestManager.shared.addSwipeRequestToDatabase(
-            swipeRequest: updatedRequest, isEdit: true)
-        snackbarManager.show(title: "Request Updated", style: .success)
-        withAnimation(.spring(response: 0.45, dampingFraction: 0.75)) {
-            isEditing = false
-        }
-    }
-
-    private func handleDelete() {
-        requestToCancel = request
-    }
-    
-    private func handleSwiped() {
-        requestToMarkSwiped = request
     }
 
     @ViewBuilder
@@ -147,14 +110,14 @@ struct SwipeRequestCardView: View {
         HStack {
             if isRequesterCard {
                 Button("Swiped!") {
-                    handleSwiped()
+                    viewModel.handleSwiped(for: request)
                 }
                 .buttonStyle(.borderedProminent)
                 .frame(maxWidth: .infinity)
             }
             
             Button("Cancel", role: .destructive) {
-                handleDelete()
+                viewModel.handleDelete(for: request)
             }
             .buttonStyle(.bordered)
             .frame(maxWidth: .infinity)
@@ -165,13 +128,13 @@ struct SwipeRequestCardView: View {
     private var defaultActionButtons: some View {
         HStack {
             Button("Edit") {
-                handleEdit()
+                viewModel.handleEdit(for: request)
             }
             .buttonStyle(.bordered)
             .frame(maxWidth: .infinity)
 
             Button("Cancel", role: .destructive) {
-                handleDelete()
+                viewModel.handleDelete(for: request)
             }
             .buttonStyle(.bordered)
             .frame(maxWidth: .infinity)
@@ -186,7 +149,7 @@ struct SwipeRequestCardView: View {
             HStack {
                 Text("Location")
                 Spacer()
-                Picker("", selection: $editedLocation) {
+                Picker("", selection: $viewModel.editedLocation) {
                     ForEach(DiningLocation.allCases) { location in
                         Text(location.rawValue).tag(location)
                     }
@@ -196,7 +159,7 @@ struct SwipeRequestCardView: View {
 
             DatePicker(
                 "Meeting Time",
-                selection: $editedMeetingTime,
+                selection: $viewModel.editedMeetingTime,
                 in: Date()...
             )
         }
@@ -204,15 +167,13 @@ struct SwipeRequestCardView: View {
 
         HStack {
             Button("Cancel", role: .cancel) {
-                withAnimation(.spring(response: 0.45, dampingFraction: 0.75)) {
-                    isEditing = false
-                }
+                viewModel.cancelEditing()
             }
             .buttonStyle(.bordered)
             .frame(maxWidth: .infinity)
 
             Button("Submit") {
-                handleSubmit()
+                viewModel.handleSubmit(for: request, snackbarManager: snackbarManager)
             }
             .buttonStyle(.borderedProminent)
             .frame(maxWidth: .infinity)
