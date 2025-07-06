@@ -21,6 +21,7 @@ final class SwipeRequestCardViewModel {
     // MARK: - Dependencies
     private let swipeRequestManager = SwipeRequestManager.shared
     private let snackbarManager = SnackbarManager.shared
+    private let userManager = UserManager.shared
     
     // MARK: - Public Methods
     func handleEdit(for request: SwipeRequest) {
@@ -54,8 +55,20 @@ final class SwipeRequestCardViewModel {
     
     func confirmCancel() {
         guard let request = requestToCancel else { return }
-        swipeRequestManager.cancelRequest(request: request)
-        snackbarManager.show(title: "Request Cancelled", style: .success)
+        
+        // Determine if current user is the swiper
+        let currentUserId = userManager.userID
+        let isSwiper = currentUserId == request.swiperId
+        
+        if isSwiper {
+            swipeRequestManager.cancelRequestAsSwiper(request: request)
+            let message = request.status == .scheduled ? "Removed from request - it's now open again" : "Request Cancelled"
+            snackbarManager.show(title: message, style: .success)
+        } else {
+            swipeRequestManager.cancelRequest(request: request)
+            snackbarManager.show(title: "Request Cancelled", style: .success)
+        }
+        
         requestToCancel = nil
     }
     
