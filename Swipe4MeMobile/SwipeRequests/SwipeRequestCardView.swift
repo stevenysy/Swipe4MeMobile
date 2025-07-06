@@ -11,15 +11,9 @@ import SwiftUI
 struct SwipeRequestCardView: View {
     let request: SwipeRequest
     var isExpanded: Bool = false
-    var onDelete: () -> Void = {}
-    var onEdit: () -> Void = {}
-    var onSwiped: () -> Void = {}  // New action for "Swiped!" button
-    var isRequesterCard: Bool = true  // true for requester requests, false for swiper requests
+    var isRequesterCard: Bool = true
 
-    @Environment(SnackbarManager.self) private var snackbarManager
-    @State private var isEditing = false
-    @State private var editedLocation: DiningLocation = .commons  // Default, updated on edit
-    @State private var editedMeetingTime = Date()
+    @State private var viewModel = SwipeRequestCardViewModel()
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -38,7 +32,7 @@ struct SwipeRequestCardView: View {
             }
 
             if isExpanded {
-                if isEditing {
+                if viewModel.isEditing {
                     editStateView
                 } else {
                     readOnlyStateView
@@ -49,38 +43,36 @@ struct SwipeRequestCardView: View {
         .background(Color(.secondarySystemGroupedBackground))
         .cornerRadius(12)
         .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
-    }
-
-    private func handleEdit() {
-        editedLocation = request.location
-        editedMeetingTime = request.meetingTime.dateValue()
-        withAnimation(.spring(response: 0.45, dampingFraction: 0.75)) {
-            isEditing = true
+        .alert(
+            "Cancel Request", isPresented: .constant(viewModel.requestToCancel != nil),
+            presenting: viewModel.requestToCancel
+        ) { request in
+            Button("Cancel Request", role: .destructive) {
+                viewModel.confirmCancel()
+            }
+            Button("Keep Request", role: .cancel) {
+                viewModel.cancelDelete()
+            }
+        } message: { request in
+            Text(
+                "Are you sure you want to cancel this swipe request for \(request.location.rawValue) at \(request.meetingTime.dateValue(), style: .time)? This action cannot be undone."
+            )
         }
-    }
-
-    private func handleSubmit() {
-        var updatedRequest = request
-        updatedRequest.location = editedLocation
-        updatedRequest.meetingTime = Timestamp(date: editedMeetingTime)
-
-        SwipeRequestManager.shared.addSwipeRequestToDatabase(
-            swipeRequest: updatedRequest, isEdit: true)
-        snackbarManager.show(title: "Request Updated", style: .success)
-        withAnimation(.spring(response: 0.45, dampingFraction: 0.75)) {
-            isEditing = false
+        .alert(
+            "Confirm Swipe Received", isPresented: .constant(viewModel.requestToMarkSwiped != nil),
+            presenting: viewModel.requestToMarkSwiped
+        ) { request in
+            Button("Yes, I got it!", role: .none) {
+                viewModel.confirmSwiped()
+            }
+            Button("Not yet", role: .cancel) {
+                viewModel.cancelSwiped()
+            }
+        } message: { request in
+            Text(
+                "Have you already received your swipe from the swiper for \(request.location.rawValue)?"
+            )
         }
-        onEdit()
-    }
-
-    private func handleDelete() {
-        print("deleting swipe request with id \(String(describing: request.id))")
-        onDelete()
-    }
-    
-    private func handleSwiped() {
-        print("marking request as swiped: \(String(describing: request.id))")
-        onSwiped()
     }
 
     @ViewBuilder
@@ -117,15 +109,14 @@ struct SwipeRequestCardView: View {
         HStack {
             if isRequesterCard {
                 Button("Swiped!") {
-                    handleSwiped()
+                    viewModel.handleSwiped(for: request)
                 }
                 .buttonStyle(.borderedProminent)
                 .frame(maxWidth: .infinity)
             }
-            // Note: No edit button for in-progress requests
             
             Button("Cancel", role: .destructive) {
-                handleDelete()
+                viewModel.handleDelete(for: request)
             }
             .buttonStyle(.bordered)
             .frame(maxWidth: .infinity)
@@ -136,13 +127,13 @@ struct SwipeRequestCardView: View {
     private var defaultActionButtons: some View {
         HStack {
             Button("Edit") {
-                handleEdit()
+                viewModel.handleEdit(for: request)
             }
             .buttonStyle(.bordered)
             .frame(maxWidth: .infinity)
 
             Button("Cancel", role: .destructive) {
-                onDelete()
+                viewModel.handleDelete(for: request)
             }
             .buttonStyle(.bordered)
             .frame(maxWidth: .infinity)
@@ -157,7 +148,7 @@ struct SwipeRequestCardView: View {
             HStack {
                 Text("Location")
                 Spacer()
-                Picker("", selection: $editedLocation) {
+                Picker("", selection: $viewModel.editedLocation) {
                     ForEach(DiningLocation.allCases) { location in
                         Text(location.rawValue).tag(location)
                     }
@@ -167,7 +158,7 @@ struct SwipeRequestCardView: View {
 
             DatePicker(
                 "Meeting Time",
-                selection: $editedMeetingTime,
+                selection: $viewModel.editedMeetingTime,
                 in: Date()...
             )
         }
@@ -175,15 +166,13 @@ struct SwipeRequestCardView: View {
 
         HStack {
             Button("Cancel", role: .cancel) {
-                withAnimation(.spring(response: 0.45, dampingFraction: 0.75)) {
-                    isEditing = false
-                }
+                viewModel.cancelEditing()
             }
             .buttonStyle(.bordered)
             .frame(maxWidth: .infinity)
 
             Button("Submit") {
-                handleSubmit()
+                viewModel.handleSubmit(for: request)
             }
             .buttonStyle(.borderedProminent)
             .frame(maxWidth: .infinity)
@@ -204,12 +193,6 @@ struct SwipeRequestCardView: View {
 //            SwipeRequestCardView(
 //                request: openRequest, 
 //                isExpanded: true, 
-//                onDelete: {
-//                    print("Delete action triggered for open request: \(openRequest.id ?? "N/A")")
-//                }, 
-//                onEdit: {
-//                    print("Edit submitted for open request: \(openRequest.id ?? "N/A")")
-//                }, 
 //                isRequesterCard: true
 //            )
 //            
@@ -217,12 +200,6 @@ struct SwipeRequestCardView: View {
 //            SwipeRequestCardView(
 //                request: inProgressRequestCopy, 
 //                isExpanded: true, 
-//                onDelete: {
-//                    print("Delete action triggered for in-progress request: \(inProgressRequestCopy.id ?? "N/A")")
-//                }, 
-//                onSwiped: {
-//                    print("Swiped action triggered for request: \(inProgressRequestCopy.id ?? "N/A")")
-//                },
 //                isRequesterCard: true
 //            )
 //            
@@ -230,9 +207,6 @@ struct SwipeRequestCardView: View {
 //            SwipeRequestCardView(
 //                request: inProgressRequestCopy, 
 //                isExpanded: true, 
-//                onDelete: {
-//                    print("Delete action triggered for swiper in-progress request: \(inProgressRequestCopy.id ?? "N/A")")
-//                }, 
 //                isRequesterCard: false
 //            )
 //        }

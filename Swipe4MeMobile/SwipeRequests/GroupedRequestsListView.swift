@@ -89,9 +89,6 @@ struct SwipeRequestListView<EmptyContent: View>: View {
     @ViewBuilder let emptyStateView: () -> EmptyContent
     
     @State private var selectedRequest: SwipeRequest?
-    @State private var requestToCancel: SwipeRequest?
-    @State private var requestToMarkSwiped: SwipeRequest?
-    @Environment(SnackbarManager.self) private var snackbarManager
 
     var body: some View {
         Group {
@@ -102,49 +99,6 @@ struct SwipeRequestListView<EmptyContent: View>: View {
             }
         }
         .animation(.spring(response: 0.45, dampingFraction: 0.75), value: selectedRequest)
-        .alert(
-            "Cancel Request", isPresented: .constant(requestToCancel != nil),
-            presenting: requestToCancel
-        ) { request in
-            Button("Cancel Request", role: .destructive) {
-                if let requestToCancel = requestToCancel {
-                    SwipeRequestManager.shared.cancelRequest(request: requestToCancel)
-                    snackbarManager.show(title: "Request Cancelled", style: .success)
-                }
-                self.requestToCancel = nil
-            }
-            Button("Keep Request", role: .cancel) {
-                self.requestToCancel = nil
-            }
-        } message: { request in
-            Text(
-                "Are you sure you want to cancel this swipe request for \(request.location.rawValue) at \(request.meetingTime.dateValue(), style: .time)? This action cannot be undone."
-            )
-        }
-        .alert(
-            "Confirm Swipe Received", isPresented: .constant(requestToMarkSwiped != nil),
-            presenting: requestToMarkSwiped
-        ) { request in
-            Button("Yes, I got it!", role: .none) {
-                if let requestToMarkSwiped = requestToMarkSwiped {
-                    // Handle the actual "Swiped!" action here
-                    print("Swiped action confirmed for request: \(requestToMarkSwiped.id ?? "N/A")")
-                    SwipeRequestManager.shared.markRequestAsSwiped(request: requestToMarkSwiped)
-                    snackbarManager.show(title: "Marked as Swiped!", style: .success)
-                    withAnimation(.spring(response: 0.45, dampingFraction: 0.75)) {
-                        self.selectedRequest = nil
-                    }
-                }
-                self.requestToMarkSwiped = nil
-            }
-            Button("Not yet", role: .cancel) {
-                self.requestToMarkSwiped = nil
-            }
-        } message: { request in
-            Text(
-                "Have you already received your swipe from the swiper for \(request.location.rawValue)?"
-            )
-        }
     }
     
     private var requestsListView: some View {
@@ -155,28 +109,15 @@ struct SwipeRequestListView<EmptyContent: View>: View {
                         SwipeRequestCardView(
                             request: request,
                             isExpanded: selectedRequest?.id == request.id,
-                            onDelete: {
-                                self.requestToCancel = request
-                            },
-                            onEdit: {
-                                withAnimation(.spring(response: 0.45, dampingFraction: 0.75)) {
-                                    self.selectedRequest = nil
-                                }
-                            },
-                            onSwiped: {
-                                // Show confirmation alert before marking as swiped
-                                self.requestToMarkSwiped = request
-                            },
                             isRequesterCard: request.requesterId == userId
                         )
-                        .id(request.id) // Important: Give each card a unique ID for scrolling
+                        .id(request.id)
                         .onTapGesture {
                             withAnimation(.spring(response: 0.45, dampingFraction: 0.75)) {
                                 if self.selectedRequest?.id == request.id {
                                     self.selectedRequest = nil
                                 } else {
                                     self.selectedRequest = request
-                                    // Scroll to the expanded card after a brief delay to allow the animation to start
                                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                                         withAnimation(.easeInOut(duration: 0.5)) {
                                             proxy.scrollTo(request.id, anchor: .center)
@@ -207,9 +148,6 @@ struct SwipeRequestGroupedListView<EmptyContent: View>: View {
     @ViewBuilder let emptyStateView: () -> EmptyContent
     
     @State private var selectedRequest: SwipeRequest?
-    @State private var requestToCancel: SwipeRequest?
-    @State private var requestToMarkSwiped: SwipeRequest?
-    @Environment(SnackbarManager.self) private var snackbarManager
 
     private var groupedRequests: [Date: [SwipeRequest]] {
         Dictionary(grouping: requests) { request in
@@ -230,49 +168,6 @@ struct SwipeRequestGroupedListView<EmptyContent: View>: View {
             }
         }
         .animation(.spring(response: 0.45, dampingFraction: 0.75), value: selectedRequest)
-        .alert(
-            "Cancel Request", isPresented: .constant(requestToCancel != nil),
-            presenting: requestToCancel
-        ) { request in
-            Button("Cancel Request", role: .destructive) {
-                if let requestToCancel = requestToCancel {
-                    SwipeRequestManager.shared.cancelRequest(request: requestToCancel)
-                    snackbarManager.show(title: "Request Cancelled", style: .success)
-                }
-                self.requestToCancel = nil
-            }
-            Button("Keep Request", role: .cancel) {
-                self.requestToCancel = nil
-            }
-        } message: { request in
-            Text(
-                "Are you sure you want to cancel this swipe request for \(request.location.rawValue) at \(request.meetingTime.dateValue(), style: .time)? This action cannot be undone."
-            )
-        }
-        .alert(
-            "Confirm Swipe Received", isPresented: .constant(requestToMarkSwiped != nil),
-            presenting: requestToMarkSwiped
-        ) { request in
-            Button("Yes, I got it!", role: .none) {
-                if let requestToMarkSwiped = requestToMarkSwiped {
-                    // Handle the actual "Swiped!" action here
-                    print("Swiped action confirmed for request: \(requestToMarkSwiped.id ?? "N/A")")
-                    SwipeRequestManager.shared.markRequestAsSwiped(request: requestToMarkSwiped)
-                    snackbarManager.show(title: "Marked as Swiped!", style: .success)
-                    withAnimation(.spring(response: 0.45, dampingFraction: 0.75)) {
-                        self.selectedRequest = nil
-                    }
-                }
-                self.requestToMarkSwiped = nil
-            }
-            Button("Not yet", role: .cancel) {
-                self.requestToMarkSwiped = nil
-            }
-        } message: { request in
-            Text(
-                "Have you already received your swipe from the swiper for \(request.location.rawValue)?"
-            )
-        }
     }
     
     private var requestsListViewWithScrolling: some View {
@@ -285,28 +180,15 @@ struct SwipeRequestGroupedListView<EmptyContent: View>: View {
                                 SwipeRequestCardView(
                                     request: request,
                                     isExpanded: selectedRequest?.id == request.id,
-                                    onDelete: {
-                                        self.requestToCancel = request
-                                    },
-                                    onEdit: {
-                                        withAnimation(.spring(response: 0.45, dampingFraction: 0.75)) {
-                                            self.selectedRequest = nil
-                                        }
-                                    },
-                                    onSwiped: {
-                                        // Show confirmation alert before marking as swiped
-                                        self.requestToMarkSwiped = request
-                                    },
                                     isRequesterCard: request.requesterId == userId
                                 )
-                                .id(request.id) // Important: Give each card a unique ID for scrolling
+                                .id(request.id)
                                 .onTapGesture {
                                     withAnimation(.spring(response: 0.45, dampingFraction: 0.75)) {
                                         if self.selectedRequest?.id == request.id {
                                             self.selectedRequest = nil
                                         } else {
                                             self.selectedRequest = request
-                                            // Scroll to the expanded card after a brief delay to allow the animation to start
                                             DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                                                 withAnimation(.easeInOut(duration: 0.5)) {
                                                     proxy.scrollTo(request.id, anchor: .center)
@@ -333,4 +215,4 @@ struct SwipeRequestGroupedListView<EmptyContent: View>: View {
             .background(Color(.systemGroupedBackground))
         }
     }
-} 
+}

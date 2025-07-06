@@ -9,7 +9,6 @@ import SwiftUI
 
 struct MasterView: View {
     @State private var authManager = AuthenticationManager()
-    @State private var snackbarManager = SnackbarManager()
     @State private var showAlert = false
     @State private var showSignInView = false
 
@@ -55,8 +54,7 @@ struct MasterView: View {
                     .environment(authManager)
             }
         }
-        .snackbar(manager: snackbarManager)
-        .environment(snackbarManager)
+        .snackbar()
         .animation(.default, value: authManager.authState)
         .onChange(of: authManager.errorMessage) {
             showAlert = !authManager.errorMessage.isEmpty

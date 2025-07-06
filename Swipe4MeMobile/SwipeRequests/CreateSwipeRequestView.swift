@@ -12,7 +12,6 @@ struct CreateSwipeRequestView: View {
     @State var request: SwipeRequest
     @State private var selectedTime = Date()
     @Environment(AuthenticationManager.self) var authManager
-    @Environment(SnackbarManager.self) var snackbarManager
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
@@ -50,7 +49,7 @@ struct CreateSwipeRequestView: View {
                     
                     Task {
                         SwipeRequestManager.shared.addSwipeRequestToDatabase(swipeRequest: request, isEdit: false)
-                        snackbarManager.show(title: "Request created", style: .success)
+                        SnackbarManager.shared.show(title: "Request created", style: .success)
                         dismiss()
                     }
                 } label: {

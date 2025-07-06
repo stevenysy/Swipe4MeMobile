@@ -100,6 +100,39 @@ final class SwipeRequestManager {
         }
     }
     
+    func cancelRequestAsSwiper(request: SwipeRequest) {
+        guard let id = request.id else {
+            self.errorMessage = "Request has no valid document ID."
+            return
+        }
+        
+        let newStatus: RequestStatus
+        var updateData: [String: Any] = [:]
+        
+        switch request.status {
+        case .scheduled:
+            newStatus = .open
+            updateData["status"] = newStatus.rawValue
+            updateData["swiperId"] = ""  // Clear swiper ID when reverting to open
+        case .inProgress:
+            newStatus = .canceled
+            updateData["status"] = newStatus.rawValue
+            // Don't clear swiper ID when canceling - keep for record keeping
+        default:
+            newStatus = .canceled
+            updateData["status"] = newStatus.rawValue
+        }
+
+        db.collection("swipeRequests").document(id).updateData(updateData) { error in
+            print("Error cancelling request as swiper: \(error?.localizedDescription ?? "Unknown error")")
+            if let error = error {
+                self.errorMessage = error.localizedDescription   // <- Triggers alert
+            } else {
+                self.errorMessage = ""   // Clear any previous error
+            }
+        }
+    }
+    
     // MARK: - Cloud Task Scheduling
     
     func scheduleCloudTaskForRequest(requestId: String, meetingTime: Timestamp) {
