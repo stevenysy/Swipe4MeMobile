@@ -34,7 +34,6 @@ enum DateFilter: String, CaseIterable {
 // and fetches the relevant requests from Firestore.
 struct MyRequestsView: View {
     @Environment(AuthenticationManager.self) private var authManager
-    @Environment(SnackbarManager.self) private var snackbarManager
 
     var body: some View {
         NavigationStack {
@@ -76,7 +75,6 @@ private struct UserRequestsListView: View {
     @State private var currentFilter: RequestFilter = .all
     @State private var currentActivityFilter: ActivityFilter = .active
     @State private var currentDateFilter: DateFilter = .upcoming
-    @Environment(SnackbarManager.self) private var snackbarManager
     
     let userId: String
     
@@ -395,5 +393,4 @@ private struct UserRequestsListView: View {
 #Preview {
     MyRequestsView()
         .environment(AuthenticationManager())
-        .environment(SnackbarManager())
 }

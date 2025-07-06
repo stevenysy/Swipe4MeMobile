@@ -10,7 +10,6 @@ import SwiftUI
 
 struct OpenRequestCardView: View {
     @Environment(AuthenticationManager.self) private var authManager
-    @Environment(SnackbarManager.self) private var snackbarManager
     let request: SwipeRequest
     var isExpanded: Bool = false
 
@@ -78,7 +77,7 @@ struct OpenRequestCardView: View {
             SwipeRequestManager.shared.scheduleCloudTaskForRequest(requestId: requestId, meetingTime: updatedRequest.meetingTime)
         }
         
-        snackbarManager.show(title: "Request accepted", style: .success)
+        SnackbarManager.shared.show(title: "Request accepted", style: .success)
     }
 }
 
@@ -91,6 +90,5 @@ struct OpenRequestCardView: View {
     }
     .padding()
     .background(Color(.systemGroupedBackground))
-    .environment(SnackbarManager())
     .environment(AuthenticationManager())
 } 

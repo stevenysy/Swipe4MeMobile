@@ -20,6 +20,7 @@ final class SwipeRequestCardViewModel {
     
     // MARK: - Dependencies
     private let swipeRequestManager = SwipeRequestManager.shared
+    private let snackbarManager = SnackbarManager.shared
     
     // MARK: - Public Methods
     func handleEdit(for request: SwipeRequest) {
@@ -30,7 +31,7 @@ final class SwipeRequestCardViewModel {
         }
     }
     
-    func handleSubmit(for request: SwipeRequest, snackbarManager: SnackbarManager) {
+    func handleSubmit(for request: SwipeRequest) {
         var updatedRequest = request
         updatedRequest.location = editedLocation
         updatedRequest.meetingTime = Timestamp(date: editedMeetingTime)
@@ -51,7 +52,7 @@ final class SwipeRequestCardViewModel {
         requestToMarkSwiped = request
     }
     
-    func confirmCancel(snackbarManager: SnackbarManager) {
+    func confirmCancel() {
         guard let request = requestToCancel else { return }
         swipeRequestManager.cancelRequest(request: request)
         snackbarManager.show(title: "Request Cancelled", style: .success)
@@ -62,7 +63,7 @@ final class SwipeRequestCardViewModel {
         requestToCancel = nil
     }
     
-    func confirmSwiped(snackbarManager: SnackbarManager) {
+    func confirmSwiped() {
         guard let request = requestToMarkSwiped else { return }
         swipeRequestManager.markRequestAsSwiped(request: request)
         snackbarManager.show(title: "Marked as Swiped!", style: .success)

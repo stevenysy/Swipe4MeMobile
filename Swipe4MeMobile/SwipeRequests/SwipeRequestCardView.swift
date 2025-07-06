@@ -13,7 +13,6 @@ struct SwipeRequestCardView: View {
     var isExpanded: Bool = false
     var isRequesterCard: Bool = true
 
-    @Environment(SnackbarManager.self) private var snackbarManager
     @State private var viewModel = SwipeRequestCardViewModel()
 
     var body: some View {
@@ -49,7 +48,7 @@ struct SwipeRequestCardView: View {
             presenting: viewModel.requestToCancel
         ) { request in
             Button("Cancel Request", role: .destructive) {
-                viewModel.confirmCancel(snackbarManager: snackbarManager)
+                viewModel.confirmCancel()
             }
             Button("Keep Request", role: .cancel) {
                 viewModel.cancelDelete()
@@ -64,7 +63,7 @@ struct SwipeRequestCardView: View {
             presenting: viewModel.requestToMarkSwiped
         ) { request in
             Button("Yes, I got it!", role: .none) {
-                viewModel.confirmSwiped(snackbarManager: snackbarManager)
+                viewModel.confirmSwiped()
             }
             Button("Not yet", role: .cancel) {
                 viewModel.cancelSwiped()
@@ -173,7 +172,7 @@ struct SwipeRequestCardView: View {
             .frame(maxWidth: .infinity)
 
             Button("Submit") {
-                viewModel.handleSubmit(for: request, snackbarManager: snackbarManager)
+                viewModel.handleSubmit(for: request)
             }
             .buttonStyle(.borderedProminent)
             .frame(maxWidth: .infinity)

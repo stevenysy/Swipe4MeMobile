@@ -60,8 +60,6 @@ struct UserDashboardView: View {
 
 // A private view that handles the Firestore queries for today's sessions
 private struct TodaysSessionsView: View {
-    @Environment(SnackbarManager.self) private var snackbarManager
-    
     let userId: String
     
     // Queries for today's sessions
@@ -153,5 +151,4 @@ private struct TodaysSessionsView: View {
 #Preview {
     UserDashboardView()
         .environment(AuthenticationManager())
-        .environment(SnackbarManager())
 }

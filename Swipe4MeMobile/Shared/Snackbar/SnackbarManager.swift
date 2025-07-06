@@ -4,13 +4,16 @@ import SwiftUI
 
 /// An observable object that manages the presentation of snackbars.
 ///
-/// This manager should be created as a `@State` variable at the root of your app
-/// and passed down through the environment.
+/// This manager should be accessed via the shared instance.
 @Observable
 @MainActor
 class SnackbarManager {
+    static let shared = SnackbarManager()
+    
     private(set) var currentSnackbar: Snackbar?
     private var dismissTask: Task<Void, Never>?
+
+    private init() {}
 
     /// Shows a snackbar with the given configuration.
     ///
