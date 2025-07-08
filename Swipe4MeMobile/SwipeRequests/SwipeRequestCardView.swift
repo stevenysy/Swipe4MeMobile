@@ -39,16 +39,16 @@ struct SwipeRequestCardView: View {
                 Spacer()
                 
                 HStack(spacing: 8) {
+                    StatusPillView(status: request.status)
+                    
                     // Chat Icon (only for certain statuses)
                     if shouldShowChatIcon {
                         Button(action: { viewModel.handleChatTap(for: request) }) {
-                            Image(systemName: "message.circle.fill")
-                                .font(.title2)
-                                .foregroundColor(.blue)
+                            Image(systemName: "message")
+                                .font(.title3)
                         }
+                        .tint(.primary)
                     }
-                    
-                    StatusPillView(status: request.status)
                 }
             }
 

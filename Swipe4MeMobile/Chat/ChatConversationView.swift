@@ -201,43 +201,49 @@ struct MessageBubbleView: View {
     let isCurrentUser: Bool
     
     var body: some View {
-        HStack {
-            if isCurrentUser {
-                Spacer(minLength: 50)
+        if message.messageType.isSystemMessage {
+            // System messages centered with no spacing constraints
+            HStack {
+                Spacer()
+                systemMessageView
+                Spacer()
             }
-            
-            VStack(alignment: isCurrentUser ? .trailing : .leading, spacing: 4) {
-                // Message Content
-                if message.messageType.isSystemMessage {
-                    systemMessageView
-                } else {
-                    userMessageView
+        } else {
+            // User messages with normal bubble layout
+            HStack {
+                if isCurrentUser {
+                    Spacer(minLength: 50)
                 }
                 
-                // Timestamp
-                Text(message.timestamp.dateValue(), style: .time)
-                    .font(.caption2)
-                    .foregroundColor(.secondary)
-            }
-            
-            if !isCurrentUser {
-                Spacer(minLength: 50)
+                VStack(alignment: isCurrentUser ? .trailing : .leading, spacing: 4) {
+                    userMessageView
+                    
+                    // Timestamp for user messages only
+                    Text(message.timestamp.dateValue(), style: .time)
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                }
+                
+                if !isCurrentUser {
+                    Spacer(minLength: 50)
+                }
             }
         }
     }
     
     @ViewBuilder
     private var systemMessageView: some View {
-        HStack {
-            Spacer()
+        VStack(spacing: 4) {
+            // Timestamp centered above the message
+            Text(message.timestamp.dateValue(), style: .time)
+                .font(.caption2)
+                .foregroundColor(.secondary)
+            
+            // System message as plain text
             Text(message.content)
                 .font(.caption)
                 .foregroundColor(.secondary)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 6)
-                .background(Color(.systemGray5))
-                .cornerRadius(12)
-            Spacer()
+                .multilineTextAlignment(.center)
         }
     }
     
