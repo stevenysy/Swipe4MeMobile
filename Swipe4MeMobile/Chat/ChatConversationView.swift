@@ -105,6 +105,10 @@ struct ChatConversationView: View {
                     .font(.subheadline)
                     .foregroundColor(.secondary)
             }
+            .onTapGesture {
+                // Dismiss keyboard when tapping on empty state
+                UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+            }
             Spacer()
         } else {
             ScrollViewReader { proxy in
@@ -120,6 +124,10 @@ struct ChatConversationView: View {
                     }
                     .padding(.horizontal)
                     .padding(.vertical, 8)
+                }
+                .onTapGesture {
+                    // Dismiss keyboard when tapping on messages
+                    UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
                 }
                 .onChange(of: messages.count) { _, _ in
                     // Auto-scroll to bottom when new messages arrive
