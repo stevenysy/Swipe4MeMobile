@@ -75,6 +75,13 @@ final class SwipeRequestCardViewModel {
         } else {
             swipeRequestManager.cancelRequest(request: request)
             snackbarManager.show(title: "Request Cancelled", style: .success)
+            
+            // Close the chat room when requester cancels (complete cancellation)
+            if let requestId = request.id {
+                Task {
+                    await chatManager.closeChatRoom(requestId: requestId)
+                }
+            }
         }
         
         requestToCancel = nil

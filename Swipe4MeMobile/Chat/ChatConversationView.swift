@@ -15,6 +15,7 @@ struct ChatConversationView: View {
     @State private var messages: [ChatMessage] = []
     @State private var messageText = ""
     @State private var isLoading = true
+    @State private var isChatActive = true
     
     @Environment(\.dismiss) private var dismiss
     
@@ -39,6 +40,7 @@ struct ChatConversationView: View {
         .navigationBarHidden(true)
         .onAppear {
             startListeningToMessages()
+            isChatActive = chatRoom.isActive
         }
         .onDisappear {
             stopListeningToMessages()
@@ -146,18 +148,32 @@ struct ChatConversationView: View {
     @ViewBuilder
     private var messageInputView: some View {
         HStack(spacing: 12) {
-            // Text Input
-            TextField("Type a message...", text: $messageText, axis: .vertical)
-                .textFieldStyle(.roundedBorder)
-                .lineLimit(1...4)
-            
-            // Send Button
-            Button(action: sendMessage) {
-                Image(systemName: "arrow.up.circle.fill")
-                    .font(.title2)
-                    .foregroundColor(canSendMessage ? .blue : .gray)
+            if isChatActive {
+                // Text Input
+                TextField("Type a message...", text: $messageText, axis: .vertical)
+                    .textFieldStyle(.roundedBorder)
+                    .lineLimit(1...4)
+                
+                // Send Button
+                Button(action: sendMessage) {
+                    Image(systemName: "arrow.up.circle.fill")
+                        .font(.title2)
+                        .foregroundColor(canSendMessage ? .blue : .gray)
+                }
+                .disabled(!canSendMessage)
+            } else {
+                // Disabled input for closed chats
+                HStack {
+                    Spacer()
+                    Text("This chat has been closed")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                    Spacer()
+                }
+                .padding(.vertical, 12)
+                .background(Color(.systemGray6))
+                .cornerRadius(8)
             }
-            .disabled(!canSendMessage)
         }
         .padding(.horizontal)
         .padding(.vertical, 12)
@@ -167,7 +183,7 @@ struct ChatConversationView: View {
     // MARK: - Helper Properties
     
     private var canSendMessage: Bool {
-        !messageText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        isChatActive && !messageText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
     
     private func isCurrentUserMessage(_ message: ChatMessage) -> Bool {
@@ -195,10 +211,18 @@ struct ChatConversationView: View {
                 isLoading = false
             }
         }
+        
+        // Also listen for chat room status changes
+        chatManager.startListeningToChatRoomStatus(in: chatRoom.requestId) { isActive in
+            withAnimation(.easeInOut(duration: 0.2)) {
+                isChatActive = isActive
+            }
+        }
     }
     
     private func stopListeningToMessages() {
         chatManager.stopListeningToMessages(in: chatRoom.requestId)
+        chatManager.stopListeningToChatRoomStatus(in: chatRoom.requestId)
     }
 }
 

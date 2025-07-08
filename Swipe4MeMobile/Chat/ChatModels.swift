@@ -18,6 +18,7 @@ struct ChatRoom: Codable, Identifiable, Equatable, Hashable {
     let createdAt: Timestamp
     var lastMessageAt: Timestamp?
     var lastMessage: String?
+    var isActive: Bool = true  // Chat room is active by default
     
     init(
         requestId: String,
@@ -25,7 +26,8 @@ struct ChatRoom: Codable, Identifiable, Equatable, Hashable {
         swiperId: String,
         createdAt: Timestamp = Timestamp(),
         lastMessageAt: Timestamp? = nil,
-        lastMessage: String? = nil
+        lastMessage: String? = nil,
+        isActive: Bool = true
     ) {
         self.requestId = requestId
         self.requesterId = requesterId
@@ -33,6 +35,7 @@ struct ChatRoom: Codable, Identifiable, Equatable, Hashable {
         self.createdAt = createdAt
         self.lastMessageAt = lastMessageAt
         self.lastMessage = lastMessage
+        self.isActive = isActive
     }
     
     /// Returns the other participant's ID (not the current user)
@@ -63,6 +66,11 @@ struct ChatRoom: Codable, Identifiable, Equatable, Hashable {
     /// Updates the swiper for this chat room (when someone new accepts the request)
     mutating func updateSwiper(newSwiperId: String) {
         self.swiperId = newSwiperId
+    }
+    
+    /// Closes the chat room (when request is cancelled or completed)
+    mutating func closeChatRoom() {
+        self.isActive = false
     }
 }
 
@@ -171,6 +179,13 @@ extension ChatMessage {
         return createSystemMessage(
             chatRoomId: chatRoomId,
             content: "\(newSwiperName) is now the swiper for this request"
+        )
+    }
+    
+    static func chatClosed(chatRoomId: String) -> ChatMessage {
+        return createSystemMessage(
+            chatRoomId: chatRoomId,
+            content: "This chat has been closed due to request cancellation"
         )
     }
 }

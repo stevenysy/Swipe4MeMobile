@@ -15,14 +15,9 @@ struct SwipeRequestCardView: View {
 
     @State private var viewModel = SwipeRequestCardViewModel()
     
-    // Show chat icon for statuses where chat is available
+    // Show chat icon for all statuses to allow access to chat history
     private var shouldShowChatIcon: Bool {
-        switch request.status {
-        case .open, .scheduled, .inProgress, .awaitingReview:
-            return true
-        case .complete, .canceled:
-            return false
-        }
+        return true
     }
 
     var body: some View {

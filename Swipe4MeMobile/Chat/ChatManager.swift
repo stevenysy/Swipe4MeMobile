@@ -20,6 +20,7 @@ final class ChatManager {
     // MARK: - Published Properties
     var errorMessage = ""
     private var chatRoomListeners: [String: ListenerRegistration] = [:]
+    private var chatRoomStatusListeners: [String: ListenerRegistration] = [:]
     
     private init() {}
     
@@ -208,6 +209,28 @@ final class ChatManager {
         await sendMessage(systemMessage)
     }
     
+    /// Closes a chat room when request is cancelled
+    func closeChatRoom(requestId: String) async {
+        do {
+            // Mark chat room as inactive
+            let updateData: [String: Any] = [
+                "isActive": false,
+                "lastMessageAt": Timestamp()
+            ]
+            try await db.collection("chatRooms").document(requestId).updateData(updateData)
+            
+            // Add system message about chat closure
+            let systemMessage = ChatMessage.chatClosed(chatRoomId: requestId)
+            await sendMessage(systemMessage)
+            
+            print("Chat room closed for request: \(requestId)")
+            
+        } catch {
+            errorMessage = "Failed to close chat room: \(error.localizedDescription)"
+            print("Error closing chat room: \(error)")
+        }
+    }
+    
     // MARK: - Real-time Listeners
     
     /// Starts listening for real-time updates in a chat room
@@ -253,12 +276,56 @@ final class ChatManager {
         chatRoomListeners.removeValue(forKey: chatRoomId)
     }
     
+    /// Starts listening for real-time updates to a chat room's status
+    /// - Parameters:
+    ///   - chatRoomId: The ID of the chat room to listen to
+    ///   - completion: Callback with the chat room's active status
+    func startListeningToChatRoomStatus(
+        in chatRoomId: String,
+        completion: @escaping (Bool) -> Void
+    ) {
+        // Remove existing listener if any
+        stopListeningToChatRoomStatus(in: chatRoomId)
+        
+        let listener = db.collection("chatRooms")
+            .document(chatRoomId)
+            .addSnapshotListener { documentSnapshot, error in
+                if let error = error {
+                    print("Error listening to chat room status: \(error)")
+                    return
+                }
+                
+                guard let document = documentSnapshot,
+                      let data = document.data(),
+                      let isActive = data["isActive"] as? Bool else {
+                    completion(true) // Default to active if we can't determine status
+                    return
+                }
+                
+                completion(isActive)
+            }
+        
+        chatRoomStatusListeners[chatRoomId] = listener
+    }
+    
+    /// Stops listening to chat room status in a specific chat room
+    /// - Parameter chatRoomId: The ID of the chat room to stop listening to
+    func stopListeningToChatRoomStatus(in chatRoomId: String) {
+        chatRoomStatusListeners[chatRoomId]?.remove()
+        chatRoomStatusListeners.removeValue(forKey: chatRoomId)
+    }
+    
     /// Stops all active listeners
     func stopAllListeners() {
         for (_, listener) in chatRoomListeners {
             listener.remove()
         }
         chatRoomListeners.removeAll()
+        
+        for (_, listener) in chatRoomStatusListeners {
+            listener.remove()
+        }
+        chatRoomStatusListeners.removeAll()
     }
     
     // MARK: - Helper Methods
