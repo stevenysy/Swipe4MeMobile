@@ -30,27 +30,36 @@ final class ChatManager {
     ///   - request: The SwipeRequest to create a chat room for
     /// - Returns: The created ChatRoom, or nil if creation failed
     func createChatRoom(for request: SwipeRequest) async -> ChatRoom? {
-        guard let requestId = request.id,
-              !request.swiperId.isEmpty else {
+        guard let requestId = request.id else {
             errorMessage = "Invalid request data for chat room creation"
             return nil
         }
         
+        // For open requests, swiperId might be empty - that's okay
+        let swiperId = request.swiperId.isEmpty ? "" : request.swiperId
+        
         let chatRoom = ChatRoom(
             requestId: requestId,
             requesterId: request.requesterId,
-            swiperId: request.swiperId
+            swiperId: swiperId
         )
         
         do {
             // Use the request ID as the chat room document ID
             try db.collection("chatRooms").document(requestId).setData(from: chatRoom)
             
-            // Add initial system message
-            if let swiperName = await getSwiperName(swiperId: request.swiperId) {
+            // Add initial system message only if there's a swiper
+            if !swiperId.isEmpty, let swiperName = await getSwiperName(swiperId: swiperId) {
                 let systemMessage = ChatMessage.requestAccepted(
                     chatRoomId: requestId,
                     swiperName: swiperName
+                )
+                await sendMessage(systemMessage)
+            } else if swiperId.isEmpty {
+                // For open requests, add a different initial message
+                let systemMessage = ChatMessage.createSystemMessage(
+                    chatRoomId: requestId,
+                    content: "Chat room created for your swipe request"
                 )
                 await sendMessage(systemMessage)
             }

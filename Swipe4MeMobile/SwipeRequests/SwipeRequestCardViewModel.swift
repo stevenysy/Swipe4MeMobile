@@ -17,11 +17,13 @@ final class SwipeRequestCardViewModel {
     var editedMeetingTime = Date()
     var requestToCancel: SwipeRequest?
     var requestToMarkSwiped: SwipeRequest?
+    var chatDestination: ChatDestination?
     
     // MARK: - Dependencies
     private let swipeRequestManager = SwipeRequestManager.shared
     private let snackbarManager = SnackbarManager.shared
     private let userManager = UserManager.shared
+    private let chatManager = ChatManager.shared
     
     // MARK: - Public Methods
     func handleEdit(for request: SwipeRequest) {
@@ -51,6 +53,12 @@ final class SwipeRequestCardViewModel {
     
     func handleSwiped(for request: SwipeRequest) {
         requestToMarkSwiped = request
+    }
+    
+    func handleChatTap(for request: SwipeRequest) {
+        Task {
+            await openChat(for: request)
+        }
     }
     
     func confirmCancel() {
@@ -92,4 +100,40 @@ final class SwipeRequestCardViewModel {
             isEditing = false
         }
     }
+    
+    // MARK: - Chat Navigation
+    
+    private func openChat(for request: SwipeRequest) async {
+        guard let requestId = request.id else {
+            snackbarManager.show(title: "Cannot open chat: Invalid request", style: .error)
+            return
+        }
+        
+        // Get or create chat room
+        var chatRoom: ChatRoom?
+        
+        // First, try to get existing chat room
+        chatRoom = await chatManager.getChatRoom(for: requestId)
+        
+        // If no chat room exists, create one (for open requests)
+        if chatRoom == nil {
+            chatRoom = await chatManager.createChatRoom(for: request)
+        }
+        
+        guard let finalChatRoom = chatRoom else {
+            snackbarManager.show(title: "Unable to access chat", style: .error)
+            return
+        }
+        
+        // Set the navigation destination
+        chatDestination = ChatDestination(chatRoom: finalChatRoom, swipeRequest: request)
+    }
+}
+
+// MARK: - Chat Navigation Helper
+
+struct ChatDestination: Identifiable {
+    let id = UUID()
+    let chatRoom: ChatRoom
+    let swipeRequest: SwipeRequest
 } 

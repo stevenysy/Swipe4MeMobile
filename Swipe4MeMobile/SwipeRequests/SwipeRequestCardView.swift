@@ -14,6 +14,16 @@ struct SwipeRequestCardView: View {
     var isRequesterCard: Bool = true
 
     @State private var viewModel = SwipeRequestCardViewModel()
+    
+    // Show chat icon for statuses where chat is available
+    private var shouldShowChatIcon: Bool {
+        switch request.status {
+        case .open, .scheduled, .inProgress, .awaitingReview:
+            return true
+        case .complete, .canceled:
+            return false
+        }
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -27,8 +37,19 @@ struct SwipeRequestCardView: View {
                 }
 
                 Spacer()
-
-                StatusPillView(status: request.status)
+                
+                HStack(spacing: 8) {
+                    // Chat Icon (only for certain statuses)
+                    if shouldShowChatIcon {
+                        Button(action: { viewModel.handleChatTap(for: request) }) {
+                            Image(systemName: "message.circle.fill")
+                                .font(.title2)
+                                .foregroundColor(.blue)
+                        }
+                    }
+                    
+                    StatusPillView(status: request.status)
+                }
             }
 
             if isExpanded {
@@ -72,6 +93,14 @@ struct SwipeRequestCardView: View {
             Text(
                 "Have you already received your swipe from the swiper for \(request.location.rawValue)?"
             )
+        }
+        .sheet(item: $viewModel.chatDestination) { destination in
+            NavigationView {
+                ChatConversationView(
+                    chatRoom: destination.chatRoom,
+                    swipeRequest: destination.swipeRequest
+                )
+            }
         }
     }
 
