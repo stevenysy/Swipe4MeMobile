@@ -47,6 +47,27 @@ final class SwipeRequestManager {
         }
     }
     
+    /// Creates a new swipe request and returns it with its generated ID
+    /// - Parameter swipeRequest: The SwipeRequest to create
+    /// - Returns: The created SwipeRequest with its ID, or nil if creation failed
+    func createSwipeRequest(_ swipeRequest: SwipeRequest) async -> SwipeRequest? {
+        do {
+            let documentRef = try db.collection("swipeRequests").addDocument(from: swipeRequest)
+            
+            // Return the request with the generated ID
+            var requestWithId = swipeRequest
+            requestWithId.id = documentRef.documentID
+            
+            print("Created swipe request with ID: \(documentRef.documentID)")
+            return requestWithId
+            
+        } catch {
+            print("Error creating swipe request: \(error.localizedDescription)")
+            errorMessage = error.localizedDescription
+            return nil
+        }
+    }
+    
     /// Deletes a request from Firestore and updates `errorMessage` on failure.
     ///
     /// - Parameter request: The `SwipeRequest` to remove.

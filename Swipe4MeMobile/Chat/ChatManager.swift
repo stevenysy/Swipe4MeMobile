@@ -49,18 +49,19 @@ final class ChatManager {
             // Use the request ID as the chat room document ID
             try db.collection("chatRooms").document(requestId).setData(from: chatRoom)
             
-            // Add initial system message only if there's a swiper
+            // Add initial system message based on request status
             if !swiperId.isEmpty, let swiperName = await getSwiperName(swiperId: swiperId) {
+                // If there's a swiper, this is an acceptance
                 let systemMessage = ChatMessage.requestAccepted(
                     chatRoomId: requestId,
                     swiperName: swiperName
                 )
                 await sendMessage(systemMessage)
-            } else if swiperId.isEmpty {
-                // For open requests, add a different initial message
+            } else {
+                // For new open requests, add a welcome message
                 let systemMessage = ChatMessage.createSystemMessage(
                     chatRoomId: requestId,
-                    content: "Chat room created for your swipe request"
+                    content: "Chat room created! When someone accepts your request, you can chat here."
                 )
                 await sendMessage(systemMessage)
             }

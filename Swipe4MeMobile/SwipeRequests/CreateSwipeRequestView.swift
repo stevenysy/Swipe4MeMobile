@@ -48,9 +48,16 @@ struct CreateSwipeRequestView: View {
                     dump(request)
                     
                     Task {
-                        SwipeRequestManager.shared.addSwipeRequestToDatabase(swipeRequest: request, isEdit: false)
-                        SnackbarManager.shared.show(title: "Request created", style: .success)
-                        dismiss()
+                        // Create the swipe request and get it back with the generated ID
+                        if let createdRequest = await SwipeRequestManager.shared.createSwipeRequest(request) {
+                            // Create the chat room for the new request (now with ID)
+                            await ChatManager.shared.createChatRoom(for: createdRequest)
+                            
+                            SnackbarManager.shared.show(title: "Request created", style: .success)
+                            dismiss()
+                        } else {
+                            SnackbarManager.shared.show(title: "Failed to create request", style: .error)
+                        }
                     }
                 } label: {
                     Text("Submit")

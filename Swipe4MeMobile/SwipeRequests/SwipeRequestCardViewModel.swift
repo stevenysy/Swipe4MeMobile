@@ -119,10 +119,10 @@ final class SwipeRequestCardViewModel {
         // Get or create chat room
         var chatRoom: ChatRoom?
         
-        // First, try to get existing chat room
+        // Get existing chat room (should always exist now since we create them upfront)
         chatRoom = await chatManager.getChatRoom(for: requestId)
         
-        // If no chat room exists, create one (for open requests)
+        // If no chat room exists, create one (fallback for older requests)
         if chatRoom == nil {
             chatRoom = await chatManager.createChatRoom(for: request)
         }
