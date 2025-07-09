@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import FirebaseAuth
 
 // TODO: Get rid of the role selection!!!
 // Users should be able to request swipes and register to swipe for others
@@ -50,6 +51,12 @@ struct AppView: View {
                 Text("Open Requests")
             }
             .tag(2)
+        }
+        .task {
+            // Setup notifications for authenticated users when app launches
+            if let currentUser = Auth.auth().currentUser {
+                await NotificationManager.shared.setupNotificationsForUser(currentUser.uid)
+            }
         }
     }
 }

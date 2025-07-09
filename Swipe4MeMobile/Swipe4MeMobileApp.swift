@@ -41,6 +41,7 @@ class AppDelegate: NSObject, UIApplicationDelegate {
 extension AppDelegate: MessagingDelegate {
     func messaging(_ messaging: Messaging, didReceiveRegistrationToken fcmToken: String?) {
         Task {
+            print("FCM token received")
             await NotificationManager.shared.handleTokenRefresh()
         }
     }
