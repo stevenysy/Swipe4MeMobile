@@ -19,6 +19,7 @@ struct ChatRoom: Codable, Identifiable, Equatable, Hashable {
     var lastMessageAt: Timestamp?
     var lastMessage: String?
     var isActive: Bool = true  // Chat room is active by default
+    var unreadCounts: [String: Int] = [:]  // Track unread counts per user
     
     init(
         requestId: String,
@@ -27,7 +28,8 @@ struct ChatRoom: Codable, Identifiable, Equatable, Hashable {
         createdAt: Timestamp = Timestamp(),
         lastMessageAt: Timestamp? = nil,
         lastMessage: String? = nil,
-        isActive: Bool = true
+        isActive: Bool = true,
+        unreadCounts: [String: Int] = [:]
     ) {
         self.requestId = requestId
         self.requesterId = requesterId
@@ -36,6 +38,7 @@ struct ChatRoom: Codable, Identifiable, Equatable, Hashable {
         self.lastMessageAt = lastMessageAt
         self.lastMessage = lastMessage
         self.isActive = isActive
+        self.unreadCounts = unreadCounts
     }
     
     /// Returns the other participant's ID (not the current user)
@@ -71,6 +74,34 @@ struct ChatRoom: Codable, Identifiable, Equatable, Hashable {
     /// Closes the chat room (when request is cancelled or completed)
     mutating func closeChatRoom() {
         self.isActive = false
+    }
+    
+    // MARK: - Unread Message Management
+    
+    /// Gets the unread count for a specific user
+    func getUnreadCount(for userId: String) -> Int {
+        return unreadCounts[userId] ?? 0
+    }
+    
+    /// Resets unread count to 0 for a specific user (when they open the chat)
+    mutating func resetUnreadCount(for userId: String) {
+        unreadCounts[userId] = 0
+    }
+    
+    /// Increments unread count for a specific user (when they receive a message)
+    mutating func incrementUnreadCount(for userId: String) {
+        let currentCount = unreadCounts[userId] ?? 0
+        unreadCounts[userId] = currentCount + 1
+    }
+    
+    /// Initializes unread counts for both participants if not already set
+    mutating func initializeUnreadCounts() {
+        if unreadCounts[requesterId] == nil {
+            unreadCounts[requesterId] = 0
+        }
+        if unreadCounts[swiperId] == nil {
+            unreadCounts[swiperId] = 0
+        }
     }
 }
 
@@ -201,7 +232,11 @@ extension ChatRoom {
             swiperId: "user_swiper_1",
             createdAt: Timestamp(date: Date().addingTimeInterval(-3600)),
             lastMessageAt: Timestamp(date: Date().addingTimeInterval(-300)),
-            lastMessage: "Thanks for accepting my request!"
+            lastMessage: "Thanks for accepting my request!",
+            unreadCounts: [
+                "user_requester_1": 0,
+                "user_swiper_1": 2
+            ]
         )
     }
 }
