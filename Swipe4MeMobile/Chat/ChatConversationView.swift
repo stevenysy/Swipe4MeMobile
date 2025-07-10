@@ -152,7 +152,7 @@ struct ChatConversationView: View {
                 .onAppear {
                     // Instantly show latest messages when entering chat
                     if let lastMessage = messages.last {
-                        proxy.scrollTo(lastMessage.id, anchor: .bottom)
+                        proxy.scrollTo(lastMessage.id, anchor: .center)
                     }
                 }
             }
