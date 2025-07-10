@@ -19,8 +19,10 @@ final class ChatManager {
     
     // MARK: - Published Properties
     var errorMessage = ""
+    var userUnreadCounts: UserUnreadCounts?  // Current user's unread counts
     private var chatRoomListeners: [String: ListenerRegistration] = [:]
     private var chatRoomStatusListeners: [String: ListenerRegistration] = [:]
+    private var unreadCountListener: ListenerRegistration?
     
     private init() {}
     
@@ -170,6 +172,15 @@ final class ChatManager {
                 "lastMessageAt": message.timestamp
             ]
             try await db.collection("chatRooms").document(message.chatRoomId).updateData(updateData)
+            
+            // For user messages (not system messages), increment unread count for recipient
+            if message.messageType == .userMessage,
+               let currentUserId = Auth.auth().currentUser?.uid,
+               let chatRoom = await getChatRoom(for: message.chatRoomId),
+               let recipientId = chatRoom.getOtherParticipantId(currentUserId: currentUserId) {
+                
+                await incrementUnreadCount(for: recipientId, in: message.chatRoomId)
+            }
             
             print("Message sent successfully to chat room: \(message.chatRoomId)")
             
@@ -327,6 +338,113 @@ final class ChatManager {
             listener.remove()
         }
         chatRoomStatusListeners.removeAll()
+        
+        stopListeningToUnreadCounts()
+    }
+    
+    // MARK: - Unread Counts Management
+    
+    /// Starts listening for unread count changes for the current user
+    func startListeningToUnreadCounts() {
+        guard let currentUserId = Auth.auth().currentUser?.uid else {
+            print("No authenticated user to listen for unread counts")
+            return
+        }
+        
+        // Stop existing listener if any
+        stopListeningToUnreadCounts()
+        
+        // Listen to the user's unread counts document
+        unreadCountListener = db.collection("userUnreadCounts")
+            .document(currentUserId)
+            .addSnapshotListener { [weak self] documentSnapshot, error in
+                if let error = error {
+                    print("Error listening to unread counts: \(error)")
+                    return
+                }
+                
+                if let document = documentSnapshot, document.exists {
+                    do {
+                        let unreadCounts = try document.data(as: UserUnreadCounts.self)
+                        self?.userUnreadCounts = unreadCounts
+                    } catch {
+                        print("Error decoding unread counts: \(error)")
+                    }
+                } else {
+                    // Document doesn't exist, create empty one
+                    self?.userUnreadCounts = UserUnreadCounts(userId: currentUserId)
+                }
+            }
+    }
+    
+    /// Stops listening to unread count changes
+    func stopListeningToUnreadCounts() {
+        unreadCountListener?.remove()
+        unreadCountListener = nil
+    }
+    
+    /// Resets unread count to 0 for the current user in a specific chat room
+    /// - Parameter chatRoomId: The ID of the chat room
+    func resetUnreadCount(for chatRoomId: String) async {
+        guard let currentUserId = Auth.auth().currentUser?.uid else {
+            print("No authenticated user to reset unread count")
+            return
+        }
+        
+        do {
+            let updateData: [String: Any] = [
+                "chatRoomCounts.\(chatRoomId)": 0,
+                "lastUpdated": Timestamp()
+            ]
+            try await db.collection("userUnreadCounts").document(currentUserId).setData(updateData, merge: true)
+            print("Unread count reset for user \(currentUserId) in chat room \(chatRoomId)")
+        } catch {
+            errorMessage = "Failed to reset unread count: \(error.localizedDescription)"
+            print("Error resetting unread count: \(error)")
+        }
+    }
+    
+    /// Increments unread count for a specific user in a specific chat room
+    /// - Parameters:
+    ///   - userId: The user ID to increment count for
+    ///   - chatRoomId: The chat room ID
+    private func incrementUnreadCount(for userId: String, in chatRoomId: String) async {
+        do {
+            // Get current count
+            let document = try await db.collection("userUnreadCounts").document(userId).getDocument()
+            let currentCount: Int
+            
+            if document.exists,
+               let data = document.data(),
+               let chatRoomCounts = data["chatRoomCounts"] as? [String: Int],
+               let count = chatRoomCounts[chatRoomId] {
+                currentCount = count
+            } else {
+                currentCount = 0
+            }
+            
+            // Increment count
+            let updateData: [String: Any] = [
+                "chatRoomCounts.\(chatRoomId)": currentCount + 1,
+                "lastUpdated": Timestamp()
+            ]
+            try await db.collection("userUnreadCounts").document(userId).setData(updateData, merge: true)
+            print("Unread count incremented for user \(userId) in chat room \(chatRoomId)")
+        } catch {
+            print("Error incrementing unread count: \(error)")
+        }
+    }
+    
+    /// Gets the unread count for a specific chat room from cached data
+    /// - Parameter chatRoomId: The ID of the chat room
+    /// - Returns: The unread count for the current user in that chat room
+    func getUnreadCount(for chatRoomId: String) -> Int {
+        return userUnreadCounts?.getUnreadCount(for: chatRoomId) ?? 0
+    }
+    
+    /// Gets total unread count across all chat rooms
+    var totalUnreadCount: Int {
+        return userUnreadCounts?.totalUnreadCount ?? 0
     }
     
     // MARK: - Helper Methods
