@@ -56,6 +56,9 @@ struct AppView: View {
             // Setup notifications for authenticated users when app launches
             if let currentUser = Auth.auth().currentUser {
                 await NotificationManager.shared.setupNotificationsForUser(currentUser.uid)
+                
+                // Start listening to unread message counts
+                ChatManager.shared.startListeningToUnreadCounts()
             }
         }
     }
