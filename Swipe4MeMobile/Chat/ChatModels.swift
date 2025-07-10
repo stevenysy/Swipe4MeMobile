@@ -19,7 +19,6 @@ struct ChatRoom: Codable, Identifiable, Equatable, Hashable {
     var lastMessageAt: Timestamp?
     var lastMessage: String?
     var isActive: Bool = true  // Chat room is active by default
-    var unreadCounts: [String: Int] = [:]  // Track unread counts per user
     
     init(
         requestId: String,
@@ -28,8 +27,7 @@ struct ChatRoom: Codable, Identifiable, Equatable, Hashable {
         createdAt: Timestamp = Timestamp(),
         lastMessageAt: Timestamp? = nil,
         lastMessage: String? = nil,
-        isActive: Bool = true,
-        unreadCounts: [String: Int] = [:]
+        isActive: Bool = true
     ) {
         self.requestId = requestId
         self.requesterId = requesterId
@@ -38,7 +36,6 @@ struct ChatRoom: Codable, Identifiable, Equatable, Hashable {
         self.lastMessageAt = lastMessageAt
         self.lastMessage = lastMessage
         self.isActive = isActive
-        self.unreadCounts = unreadCounts
     }
     
     /// Returns the other participant's ID (not the current user)
@@ -75,32 +72,60 @@ struct ChatRoom: Codable, Identifiable, Equatable, Hashable {
     mutating func closeChatRoom() {
         self.isActive = false
     }
+}
+
+// MARK: - UserUnreadCounts Model
+
+struct UserUnreadCounts: Codable, Identifiable, Equatable {
+    @DocumentID var id: String?  // This will be the userId
+    var chatRoomCounts: [String: Int] = [:]  // chatRoomId -> unread count
+    var lastUpdated: Timestamp = Timestamp()
     
-    // MARK: - Unread Message Management
-    
-    /// Gets the unread count for a specific user
-    func getUnreadCount(for userId: String) -> Int {
-        return unreadCounts[userId] ?? 0
+    init(userId: String? = nil, chatRoomCounts: [String: Int] = [:]) {
+        self.id = userId
+        self.chatRoomCounts = chatRoomCounts
+        self.lastUpdated = Timestamp()
     }
     
-    /// Resets unread count to 0 for a specific user (when they open the chat)
-    mutating func resetUnreadCount(for userId: String) {
-        unreadCounts[userId] = 0
+    /// Gets the unread count for a specific chat room
+    func getUnreadCount(for chatRoomId: String) -> Int {
+        return chatRoomCounts[chatRoomId] ?? 0
     }
     
-    /// Increments unread count for a specific user (when they receive a message)
-    mutating func incrementUnreadCount(for userId: String) {
-        let currentCount = unreadCounts[userId] ?? 0
-        unreadCounts[userId] = currentCount + 1
+    /// Sets the unread count for a specific chat room
+    mutating func setUnreadCount(for chatRoomId: String, count: Int) {
+        chatRoomCounts[chatRoomId] = max(0, count) // Ensure non-negative
+        lastUpdated = Timestamp()
     }
     
-    /// Initializes unread counts for both participants if not already set
-    mutating func initializeUnreadCounts() {
-        if unreadCounts[requesterId] == nil {
-            unreadCounts[requesterId] = 0
-        }
-        if unreadCounts[swiperId] == nil {
-            unreadCounts[swiperId] = 0
+    /// Resets unread count to 0 for a specific chat room
+    mutating func resetUnreadCount(for chatRoomId: String) {
+        chatRoomCounts[chatRoomId] = 0
+        lastUpdated = Timestamp()
+    }
+    
+    /// Increments unread count for a specific chat room
+    mutating func incrementUnreadCount(for chatRoomId: String) {
+        let currentCount = chatRoomCounts[chatRoomId] ?? 0
+        chatRoomCounts[chatRoomId] = currentCount + 1
+        lastUpdated = Timestamp()
+    }
+    
+    /// Removes a chat room from unread counts (when chat room is deleted)
+    mutating func removeChatRoom(_ chatRoomId: String) {
+        chatRoomCounts.removeValue(forKey: chatRoomId)
+        lastUpdated = Timestamp()
+    }
+    
+    /// Gets total unread count across all chat rooms
+    var totalUnreadCount: Int {
+        return chatRoomCounts.values.reduce(0, +)
+    }
+    
+    /// Gets all chat rooms with unread messages
+    var chatRoomsWithUnreadMessages: [String] {
+        return chatRoomCounts.compactMap { key, value in
+            value > 0 ? key : nil
         }
     }
 }
@@ -232,10 +257,19 @@ extension ChatRoom {
             swiperId: "user_swiper_1",
             createdAt: Timestamp(date: Date().addingTimeInterval(-3600)),
             lastMessageAt: Timestamp(date: Date().addingTimeInterval(-300)),
-            lastMessage: "Thanks for accepting my request!",
-            unreadCounts: [
-                "user_requester_1": 0,
-                "user_swiper_1": 2
+            lastMessage: "Thanks for accepting my request!"
+        )
+    }
+}
+
+extension UserUnreadCounts {
+    static var mockUserUnreadCounts: UserUnreadCounts {
+        return UserUnreadCounts(
+            userId: "user_requester_1",
+            chatRoomCounts: [
+                "mock_request_1": 2,
+                "mock_request_2": 0,
+                "mock_request_3": 1
             ]
         )
     }
