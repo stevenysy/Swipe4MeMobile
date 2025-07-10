@@ -49,6 +49,11 @@ struct ChatConversationView: View {
         }
         .onDisappear {
             stopListeningToMessages()
+            
+            // Reset unread count when user exits chat (covers all edge cases)
+            Task {
+                await chatManager.resetUnreadCount(for: chatRoom.requestId)
+            }
         }
     }
     
