@@ -36,11 +36,17 @@ struct SwipeRequestCardView: View {
                 HStack(spacing: 8) {
                     StatusPillView(status: request.status)
                     
-                    // Chat Icon (only for certain statuses)
+                    // Chat Icon with unread badge
                     if shouldShowChatIcon {
                         Button(action: { viewModel.handleChatTap(for: request) }) {
-                            Image(systemName: "message")
+                            let unreadCount = viewModel.getUnreadCount(for: request)
+                            
+                            return Image(systemName: "message")
                                 .font(.title3)
+                                .overlay(
+                                    UnreadBadge(count: unreadCount)
+                                        .offset(x: 8, y: -8)
+                                )
                         }
                         .tint(.primary)
                     }
