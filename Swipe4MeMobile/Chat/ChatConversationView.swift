@@ -41,6 +41,11 @@ struct ChatConversationView: View {
         .onAppear {
             startListeningToMessages()
             isChatActive = chatRoom.isActive
+            
+            // Reset unread count when user opens the chat
+            Task {
+                await chatManager.resetUnreadCount(for: chatRoom.requestId)
+            }
         }
         .onDisappear {
             stopListeningToMessages()
