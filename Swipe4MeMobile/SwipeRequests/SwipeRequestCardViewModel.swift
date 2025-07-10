@@ -25,6 +25,16 @@ final class SwipeRequestCardViewModel {
     private let userManager = UserManager.shared
     private let chatManager = ChatManager.shared
     
+    // MARK: - Computed Properties
+    
+    /// Gets the unread count for a specific request's chat room
+    func getUnreadCount(for request: SwipeRequest) -> Int {
+        guard let requestId = request.id else { 
+            return 0 
+        }
+        return chatManager.getUnreadCount(for: requestId)
+    }
+    
     // MARK: - Public Methods
     func handleEdit(for request: SwipeRequest) {
         editedLocation = request.location
