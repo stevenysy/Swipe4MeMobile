@@ -392,8 +392,21 @@ final class ChatManager {
         }
         
         do {
+            // Get current document to preserve other chat room counts
+            let document = try await db.collection("userUnreadCounts").document(currentUserId).getDocument()
+            var chatRoomCounts: [String: Int] = [:]
+            
+            if document.exists,
+               let data = document.data(),
+               let existingCounts = data["chatRoomCounts"] as? [String: Int] {
+                chatRoomCounts = existingCounts
+            }
+            
+            // Update the specific chat room count
+            chatRoomCounts[chatRoomId] = 0
+            
             let updateData: [String: Any] = [
-                "chatRoomCounts.\(chatRoomId)": 0,
+                "chatRoomCounts": chatRoomCounts,
                 "lastUpdated": Timestamp()
             ]
             try await db.collection("userUnreadCounts").document(currentUserId).setData(updateData, merge: true)
@@ -410,22 +423,22 @@ final class ChatManager {
     ///   - chatRoomId: The chat room ID
     private func incrementUnreadCount(for userId: String, in chatRoomId: String) async {
         do {
-            // Get current count
+            // Get current document to preserve other chat room counts
             let document = try await db.collection("userUnreadCounts").document(userId).getDocument()
-            let currentCount: Int
+            var chatRoomCounts: [String: Int] = [:]
             
             if document.exists,
                let data = document.data(),
-               let chatRoomCounts = data["chatRoomCounts"] as? [String: Int],
-               let count = chatRoomCounts[chatRoomId] {
-                currentCount = count
-            } else {
-                currentCount = 0
+               let existingCounts = data["chatRoomCounts"] as? [String: Int] {
+                chatRoomCounts = existingCounts
             }
             
-            // Increment count
+            // Increment the specific chat room count
+            let currentCount = chatRoomCounts[chatRoomId] ?? 0
+            chatRoomCounts[chatRoomId] = currentCount + 1
+            
             let updateData: [String: Any] = [
-                "chatRoomCounts.\(chatRoomId)": currentCount + 1,
+                "chatRoomCounts": chatRoomCounts,
                 "lastUpdated": Timestamp()
             ]
             try await db.collection("userUnreadCounts").document(userId).setData(updateData, merge: true)
