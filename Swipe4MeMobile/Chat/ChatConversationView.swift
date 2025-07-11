@@ -267,7 +267,7 @@ struct MessageBubbleView: View {
                     userMessageView
                     
                     // Timestamp for user messages only
-                    Text(message.timestamp.dateValue(), style: .time)
+                    Text(message.timestamp.dateValue().chatTimestamp)
                         .font(.caption2)
                         .foregroundColor(.secondary)
                 }
@@ -283,7 +283,7 @@ struct MessageBubbleView: View {
     private var systemMessageView: some View {
         VStack(spacing: 4) {
             // Timestamp centered above the message
-            Text(message.timestamp.dateValue(), style: .time)
+            Text(message.timestamp.dateValue().chatTimestamp)
                 .font(.caption2)
                 .foregroundColor(.secondary)
             
