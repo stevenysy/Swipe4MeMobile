@@ -494,4 +494,41 @@ final class ChatManager {
         guard let currentUserId = Auth.auth().currentUser?.uid else { return nil }
         return chatRoom.getOtherParticipantId(currentUserId: currentUserId)
     }
+    
+    // MARK: - Active Chat Tracking
+    
+    /// Sets the current user's active chat room
+    /// - Parameter chatRoomId: The ID of the chat room the user is currently viewing
+    func setActiveChat(_ chatRoomId: String) async {
+        guard let currentUserId = Auth.auth().currentUser?.uid else {
+            print("No authenticated user to set active chat")
+            return
+        }
+        
+        do {
+            try await db.collection("users").document(currentUserId).setData([
+                "activeChat": chatRoomId
+            ], merge: true)
+            print("Active chat set to: \(chatRoomId)")
+        } catch {
+            print("Error setting active chat: \(error)")
+        }
+    }
+    
+    /// Clears the current user's active chat room
+    func clearActiveChat() async {
+        guard let currentUserId = Auth.auth().currentUser?.uid else {
+            print("No authenticated user to clear active chat")
+            return
+        }
+        
+        do {
+            try await db.collection("users").document(currentUserId).setData([
+                "activeChat": FieldValue.delete()
+            ], merge: true)
+            print("Active chat cleared")
+        } catch {
+            print("Error clearing active chat: \(error)")
+        }
+    }
 }
