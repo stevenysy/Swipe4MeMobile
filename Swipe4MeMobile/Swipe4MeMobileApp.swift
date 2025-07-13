@@ -10,6 +10,11 @@ import FirebaseMessaging
 import SwiftUI
 import UserNotifications
 
+// MARK: - Notification Names
+extension Notification.Name {
+    static let openChatNotification = Notification.Name("openChatNotification")
+}
+
 class AppDelegate: NSObject, UIApplicationDelegate {
     func application(
         _ application: UIApplication,
@@ -53,6 +58,27 @@ extension AppDelegate: UNUserNotificationCenterDelegate {
                                 willPresent notification: UNNotification,
                                 withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
         completionHandler([.banner, .sound, .badge])
+    }
+    
+    func userNotificationCenter(_ center: UNUserNotificationCenter,
+                                didReceive response: UNNotificationResponse,
+                                withCompletionHandler completionHandler: @escaping () -> Void) {
+        let userInfo = response.notification.request.content.userInfo
+        
+        // Handle notification tap
+        if let notificationType = userInfo["type"] as? String,
+           notificationType == "chat_message",
+           let chatRoomId = userInfo["chatRoomId"] as? String {
+            
+            // Post notification to SwiftUI views
+            NotificationCenter.default.post(
+                name: .openChatNotification,
+                object: nil,
+                userInfo: ["chatRoomId": chatRoomId]
+            )
+        }
+        
+        completionHandler()
     }
 }
 

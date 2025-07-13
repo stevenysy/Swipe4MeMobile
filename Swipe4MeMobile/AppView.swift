@@ -16,6 +16,7 @@ import FirebaseAuth
 
 struct AppView: View {
     @Environment(AuthenticationManager.self) var authManager
+    @State private var navigationCoordinator = NavigationCoordinator.shared
 
     var body: some View {
         TabView {
@@ -59,6 +60,14 @@ struct AppView: View {
                 
                 // Start listening to unread message counts
                 ChatManager.shared.startListeningToUnreadCounts()
+            }
+        }
+        .sheet(isPresented: $navigationCoordinator.shouldOpenChat) {
+            if let chatRoomId = navigationCoordinator.pendingChatRoomId {
+                ChatLoaderView(chatRoomId: chatRoomId)
+                    .onDisappear {
+                        navigationCoordinator.clearPendingNavigation()
+                    }
             }
         }
     }
