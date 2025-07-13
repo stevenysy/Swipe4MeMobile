@@ -16,6 +16,7 @@ import FirebaseAuth
 
 struct AppView: View {
     @Environment(AuthenticationManager.self) var authManager
+    @Environment(\.scenePhase) private var scenePhase
     @State private var navigationCoordinator = NavigationCoordinator.shared
 
     var body: some View {
@@ -60,6 +61,22 @@ struct AppView: View {
                 
                 // Start listening to unread message counts
                 ChatManager.shared.startListeningToUnreadCounts()
+            }
+        }
+        .onChange(of: scenePhase) { _, newPhase in
+            switch newPhase {
+            case .background:
+                // App went to background - clear active chat
+                Task {
+                    await ChatManager.shared.clearActiveChat()
+                    print("App backgrounded - cleared active chat")
+                }
+            case .active:
+                print("App became active")
+            case .inactive:
+                print("App became inactive")
+            @unknown default:
+                break
             }
         }
         .sheet(isPresented: $navigationCoordinator.shouldOpenChat) {
