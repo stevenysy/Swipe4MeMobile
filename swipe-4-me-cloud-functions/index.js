@@ -291,6 +291,15 @@ exports.sendChatMessageNotification = onDocumentCreated(
       }
 
       const recipientData = recipientDoc.data();
+
+      // Check if recipient is actively viewing this chat
+      if (recipientData.activeChat === chatRoomId) {
+        console.log(
+          `Recipient ${recipientId} is actively viewing chat ${chatRoomId}, skipping notification`
+        );
+        return;
+      }
+
       const fcmToken = recipientData.fcmToken;
 
       if (!fcmToken) {
