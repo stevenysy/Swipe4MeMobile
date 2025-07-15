@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import FirebaseAuth
 
 // TODO: Get rid of the role selection!!!
 // Users should be able to request swipes and register to swipe for others
@@ -15,6 +16,8 @@ import SwiftUI
 
 struct AppView: View {
     @Environment(AuthenticationManager.self) var authManager
+    @Environment(\.scenePhase) private var scenePhase
+    @State private var navigationCoordinator = NavigationCoordinator.shared
 
     var body: some View {
         TabView {
@@ -50,6 +53,39 @@ struct AppView: View {
                 Text("Open Requests")
             }
             .tag(2)
+        }
+        .task {
+            // Setup notifications for authenticated users when app launches
+            if let currentUser = Auth.auth().currentUser {
+                await NotificationManager.shared.setupNotificationsForUser(currentUser.uid)
+                
+                // Start listening to unread message counts
+                ChatManager.shared.startListeningToUnreadCounts()
+            }
+        }
+        .onChange(of: scenePhase) { _, newPhase in
+            switch newPhase {
+            case .background:
+                // App went to background - clear active chat
+                Task {
+                    await ChatManager.shared.clearActiveChat()
+                    print("App backgrounded - cleared active chat")
+                }
+            case .active:
+                print("App became active")
+            case .inactive:
+                print("App became inactive")
+            @unknown default:
+                break
+            }
+        }
+        .sheet(isPresented: $navigationCoordinator.shouldOpenChat) {
+            if let chatRoomId = navigationCoordinator.pendingChatRoomId {
+                ChatLoaderView(chatRoomId: chatRoomId)
+                    .onDisappear {
+                        navigationCoordinator.clearPendingNavigation()
+                    }
+            }
         }
     }
 }

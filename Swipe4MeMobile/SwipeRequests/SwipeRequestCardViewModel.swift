@@ -17,11 +17,23 @@ final class SwipeRequestCardViewModel {
     var editedMeetingTime = Date()
     var requestToCancel: SwipeRequest?
     var requestToMarkSwiped: SwipeRequest?
+    var chatDestination: ChatDestination?
     
     // MARK: - Dependencies
     private let swipeRequestManager = SwipeRequestManager.shared
     private let snackbarManager = SnackbarManager.shared
     private let userManager = UserManager.shared
+    private let chatManager = ChatManager.shared
+    
+    // MARK: - Computed Properties
+    
+    /// Gets the unread count for a specific request's chat room
+    func getUnreadCount(for request: SwipeRequest) -> Int {
+        guard let requestId = request.id else { 
+            return 0 
+        }
+        return chatManager.getUnreadCount(for: requestId)
+    }
     
     // MARK: - Public Methods
     func handleEdit(for request: SwipeRequest) {
@@ -53,6 +65,12 @@ final class SwipeRequestCardViewModel {
         requestToMarkSwiped = request
     }
     
+    func handleChatTap(for request: SwipeRequest) {
+        Task {
+            await openChat(for: request)
+        }
+    }
+    
     func confirmCancel() {
         guard let request = requestToCancel else { return }
         
@@ -67,6 +85,13 @@ final class SwipeRequestCardViewModel {
         } else {
             swipeRequestManager.cancelRequest(request: request)
             snackbarManager.show(title: "Request Cancelled", style: .success)
+            
+            // Close the chat room when requester cancels (complete cancellation)
+            if let requestId = request.id {
+                Task {
+                    await chatManager.closeChatRoom(requestId: requestId)
+                }
+            }
         }
         
         requestToCancel = nil
@@ -92,4 +117,40 @@ final class SwipeRequestCardViewModel {
             isEditing = false
         }
     }
+    
+    // MARK: - Chat Navigation
+    
+    private func openChat(for request: SwipeRequest) async {
+        guard let requestId = request.id else {
+            snackbarManager.show(title: "Cannot open chat: Invalid request", style: .error)
+            return
+        }
+        
+        // Get or create chat room
+        var chatRoom: ChatRoom?
+        
+        // Get existing chat room (should always exist now since we create them upfront)
+        chatRoom = await chatManager.getChatRoom(for: requestId)
+        
+        // If no chat room exists, create one (fallback for older requests)
+        if chatRoom == nil {
+            chatRoom = await chatManager.createChatRoom(for: request)
+        }
+        
+        guard let finalChatRoom = chatRoom else {
+            snackbarManager.show(title: "Unable to access chat", style: .error)
+            return
+        }
+        
+        // Set the navigation destination
+        chatDestination = ChatDestination(chatRoom: finalChatRoom, swipeRequest: request)
+    }
+}
+
+// MARK: - Chat Navigation Helper
+
+struct ChatDestination: Identifiable {
+    let id = UUID()
+    let chatRoom: ChatRoom
+    let swipeRequest: SwipeRequest
 } 

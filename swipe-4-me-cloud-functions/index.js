@@ -12,7 +12,10 @@ const logger = require("firebase-functions/logger");
 const functions = require("firebase-functions");
 const admin = require("firebase-admin");
 const { CloudTasksClient } = require("@google-cloud/tasks");
-const { onDocumentUpdated } = require("firebase-functions/v2/firestore");
+const {
+  onDocumentUpdated,
+  onDocumentCreated,
+} = require("firebase-functions/v2/firestore");
 
 admin.initializeApp();
 const db = admin.firestore();
@@ -223,6 +226,126 @@ exports.sendAcceptanceNotification = onDocumentUpdated(
       console.log("Acceptance notification sent successfully");
     } catch (error) {
       console.error("Error sending notification:", error);
+    }
+  }
+);
+
+/**
+ * Sends push notification when someone sends a message in a chat room
+ */
+exports.sendChatMessageNotification = onDocumentCreated(
+  "chatRooms/{chatRoomId}/messages/{messageId}",
+  async (event) => {
+    const messageData = event.data.data();
+    const chatRoomId = event.params.chatRoomId;
+    const messageId = event.params.messageId;
+
+    console.log(`New message in chat room ${chatRoomId}: ${messageId}`);
+
+    // Skip system messages - only send notifications for user messages
+    if (messageData.messageType !== "userMessage") {
+      console.log("Skipping system message notification");
+      return;
+    }
+
+    try {
+      // Get the chat room to find participants
+      const chatRoomDoc = await db
+        .collection("chatRooms")
+        .doc(chatRoomId)
+        .get();
+
+      if (!chatRoomDoc.exists) {
+        console.log(`Chat room ${chatRoomId} not found`);
+        return;
+      }
+
+      const chatRoomData = chatRoomDoc.data();
+      const senderId = messageData.senderId;
+
+      // Determine the recipient (the participant who didn't send the message)
+      let recipientId;
+      if (senderId === chatRoomData.requesterId) {
+        recipientId = chatRoomData.swiperId;
+      } else if (senderId === chatRoomData.swiperId) {
+        recipientId = chatRoomData.requesterId;
+      } else {
+        console.log(
+          `Sender ${senderId} is not a participant in chat room ${chatRoomId}`
+        );
+        return;
+      }
+
+      // Skip if no recipient (e.g., swiperId is empty for open requests)
+      if (!recipientId) {
+        console.log("No recipient found for message notification");
+        return;
+      }
+
+      // Get recipient's FCM token
+      const recipientDoc = await db.collection("users").doc(recipientId).get();
+
+      if (!recipientDoc.exists) {
+        console.log(`Recipient ${recipientId} not found`);
+        return;
+      }
+
+      const recipientData = recipientDoc.data();
+
+      // Check if recipient is actively viewing this chat
+      if (recipientData.activeChat === chatRoomId) {
+        console.log(
+          `Recipient ${recipientId} is actively viewing chat ${chatRoomId}, skipping notification`
+        );
+        return;
+      }
+
+      const fcmToken = recipientData.fcmToken;
+
+      if (!fcmToken) {
+        console.log(`No FCM token found for recipient ${recipientId}`);
+        return;
+      }
+
+      // Get sender's name for the notification
+      const senderDoc = await db.collection("users").doc(senderId).get();
+      let senderName = "Someone";
+
+      if (senderDoc.exists) {
+        const senderData = senderDoc.data();
+        senderName = `${senderData.firstName} ${senderData.lastName}`.trim();
+      }
+
+      // Get the swipe request for location context
+      const requestDoc = await db
+        .collection("swipeRequests")
+        .doc(chatRoomId)
+        .get();
+      let locationContext = "";
+
+      if (requestDoc.exists) {
+        const requestData = requestDoc.data();
+        locationContext = ` (${requestData.location})`;
+      }
+
+      // Send the notification
+      await admin.messaging().send({
+        token: fcmToken,
+        notification: {
+          title: `${senderName}${locationContext}`,
+          body: messageData.content,
+        },
+        data: {
+          chatRoomId: chatRoomId,
+          messageId: messageId,
+          type: "chat_message",
+          senderId: senderId,
+        },
+      });
+
+      console.log(`Chat message notification sent to ${recipientId}`);
+    } catch (error) {
+      console.error("Error sending chat message notification:", error);
     }
   }
 );

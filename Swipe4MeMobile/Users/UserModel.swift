@@ -15,4 +15,5 @@ struct SFMUser: Codable, Identifiable {
     var profilePictureUrl: String
     var fcmToken: String?
     var lastTokenUpdate: Timestamp?
+    var activeChat: String?  // ID of chat room user is currently viewing
 }

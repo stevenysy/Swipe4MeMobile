@@ -14,6 +14,11 @@ struct SwipeRequestCardView: View {
     var isRequesterCard: Bool = true
 
     @State private var viewModel = SwipeRequestCardViewModel()
+    
+    // Show chat icon for all statuses to allow access to chat history
+    private var shouldShowChatIcon: Bool {
+        return true
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -27,8 +32,25 @@ struct SwipeRequestCardView: View {
                 }
 
                 Spacer()
-
-                StatusPillView(status: request.status)
+                
+                HStack(spacing: 8) {
+                    StatusPillView(status: request.status)
+                    
+                    // Chat Icon with unread badge
+                    if shouldShowChatIcon {
+                        Button(action: { viewModel.handleChatTap(for: request) }) {
+                            let unreadCount = viewModel.getUnreadCount(for: request)
+                            
+                            return Image(systemName: "message")
+                                .font(.title3)
+                                .overlay(
+                                    UnreadBadge(count: unreadCount)
+                                        .offset(x: 8, y: -8)
+                                )
+                        }
+                        .tint(.primary)
+                    }
+                }
             }
 
             if isExpanded {
@@ -72,6 +94,14 @@ struct SwipeRequestCardView: View {
             Text(
                 "Have you already received your swipe from the swiper for \(request.location.rawValue)?"
             )
+        }
+        .sheet(item: $viewModel.chatDestination) { destination in
+            NavigationView {
+                ChatConversationView(
+                    chatRoom: destination.chatRoom,
+                    swipeRequest: destination.swipeRequest
+                )
+            }
         }
     }
 

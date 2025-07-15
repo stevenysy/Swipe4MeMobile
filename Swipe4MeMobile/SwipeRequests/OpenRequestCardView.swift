@@ -70,14 +70,20 @@ struct OpenRequestCardView: View {
         updatedRequest.swiperId = userId
         updatedRequest.status = .scheduled
 
-        SwipeRequestManager.shared.addSwipeRequestToDatabase(swipeRequest: updatedRequest, isEdit: true)
-        
-        // Schedule cloud task to trigger at meeting time
-        if let requestId = updatedRequest.id {
-            SwipeRequestManager.shared.scheduleCloudTaskForRequest(requestId: requestId, meetingTime: updatedRequest.meetingTime)
+        Task {
+            // Update the swipe request
+            SwipeRequestManager.shared.addSwipeRequestToDatabase(swipeRequest: updatedRequest, isEdit: true)
+            
+            // Update the chat room with the new swiper and send acceptance message
+            if let requestId = updatedRequest.id {
+                await ChatManager.shared.updateChatRoomSwiper(requestId: requestId, newSwiperId: userId)
+                
+                // Schedule cloud task to trigger at meeting time
+                SwipeRequestManager.shared.scheduleCloudTaskForRequest(requestId: requestId, meetingTime: updatedRequest.meetingTime)
+            }
+            
+            SnackbarManager.shared.show(title: "Request accepted", style: .success)
         }
-        
-        SnackbarManager.shared.show(title: "Request accepted", style: .success)
     }
 }
 
