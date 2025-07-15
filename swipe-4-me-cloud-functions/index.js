@@ -102,7 +102,7 @@ exports.updateRequestStatusToInProgress = functions.https.onRequest(
 );
 
 /**
- * Schedules a Cloud Task to update request status at meeting time
+ * Schedules Cloud Tasks for reminder notification and status update
  * Called when a request is accepted
  */
 exports.scheduleRequestStatusUpdate = functions.https.onCall(
@@ -130,7 +130,9 @@ exports.scheduleRequestStatusUpdate = functions.https.onCall(
     }
 
     try {
-      console.log(`Scheduling task for request ${requestId} at ${meetingTime}`);
+      console.log(
+        `Scheduling tasks for request ${requestId} at ${meetingTime}`
+      );
 
       // Initialize Cloud Tasks client
       const client = new CloudTasksClient();
@@ -143,45 +145,176 @@ exports.scheduleRequestStatusUpdate = functions.https.onCall(
       // Construct the fully qualified queue name
       const parent = client.queuePath(projectId, location, queueName);
 
-      // Cloud Function URL for the status update
-      const url = `https://us-central1-${projectId}.cloudfunctions.net/updateRequestStatusToInProgress`;
+      // Convert meetingTime to a timestamp
+      const meetingDate = new Date(meetingTime);
+
+      // Calculate reminder time (30 minutes before meeting)
+      const reminderDate = new Date(meetingDate.getTime() - 30 * 60 * 1000);
 
       // Task payload
       const payload = JSON.stringify({ requestId });
 
-      // Convert meetingTime to a timestamp
-      const scheduleTime = new Date(meetingTime);
-
-      // Construct the task
-      const task = {
+      // Construct the reminder notification task
+      const reminderTask = {
         httpRequest: {
           httpMethod: "POST",
-          url,
+          url: `https://us-central1-${projectId}.cloudfunctions.net/sendReminderNotification`,
           body: Buffer.from(payload).toString("base64"),
           headers: {
             "Content-Type": "application/json",
           },
         },
         scheduleTime: {
-          seconds: Math.floor(scheduleTime.getTime() / 1000),
+          seconds: Math.floor(reminderDate.getTime() / 1000),
         },
       };
 
-      // Send the task
-      const [response] = await client.createTask({ parent, task });
+      // Construct the status update task
+      const statusTask = {
+        httpRequest: {
+          httpMethod: "POST",
+          url: `https://us-central1-${projectId}.cloudfunctions.net/updateRequestStatusToInProgress`,
+          body: Buffer.from(payload).toString("base64"),
+          headers: {
+            "Content-Type": "application/json",
+          },
+        },
+        scheduleTime: {
+          seconds: Math.floor(meetingDate.getTime() / 1000),
+        },
+      };
 
-      console.log(`Created task ${response.name}`);
+      // Schedule both tasks
+      const [reminderResponse, statusResponse] = await Promise.all([
+        client.createTask({ parent, task: reminderTask }),
+        client.createTask({ parent, task: statusTask }),
+      ]);
+
+      console.log(`Created reminder task ${reminderResponse.name}`);
+      console.log(`Created status update task ${statusResponse.name}`);
+
       return {
         success: true,
-        taskName: response.name,
-        message: "Task scheduled successfully",
+        reminderTaskName: reminderResponse.name,
+        statusTaskName: statusResponse.name,
+        message: "Tasks scheduled successfully",
       };
     } catch (error) {
-      console.error("Error scheduling task:", error);
+      console.error("Error scheduling tasks:", error);
       throw new functions.https.HttpsError(
         "internal",
-        `Error scheduling task: ${error.message}`
+        `Error scheduling tasks: ${error.message}`
       );
+    }
+  }
+);
+
+/**
+ * Sends reminder notification 30 minutes before meeting time
+ * Called by Cloud Task at the scheduled reminder time
+ */
+exports.sendReminderNotification = functions.https.onRequest(
+  async (req, res) => {
+    try {
+      // Only allow POST requests
+      if (req.method !== "POST") {
+        res.status(405).send("Method Not Allowed");
+        return;
+      }
+
+      const { requestId } = req.body;
+
+      if (!requestId) {
+        res.status(400).send("requestId is required");
+        return;
+      }
+
+      console.log(`Processing reminder for request ID: ${requestId}`);
+
+      // Get the current request
+      const requestDoc = await db
+        .collection("swipeRequests")
+        .doc(requestId)
+        .get();
+
+      if (!requestDoc.exists) {
+        console.log(`Request ${requestId} not found`);
+        res.status(404).send("Request not found");
+        return;
+      }
+
+      const requestData = requestDoc.data();
+      console.log(`Current status: ${requestData.status}`);
+
+      // Only send reminder if the request is still scheduled
+      if (requestData.status !== "scheduled") {
+        console.log(
+          `Request ${requestId} is no longer scheduled (current status: ${requestData.status})`
+        );
+        res
+          .status(200)
+          .send(`Request status is ${requestData.status}, no reminder needed`);
+        return;
+      }
+
+      // Get both participants
+      const [requesterDoc, swiperDoc] = await Promise.all([
+        db.collection("users").doc(requestData.requesterId).get(),
+        db.collection("users").doc(requestData.swiperId).get(),
+      ]);
+
+      const notifications = [];
+
+      // Send reminder to requester
+      if (requesterDoc.exists && requesterDoc.data()?.fcmToken) {
+        notifications.push(
+          admin.messaging().send({
+            token: requesterDoc.data().fcmToken,
+            notification: {
+              title: "Meeting Reminder",
+              body: `Your swipe session at ${requestData.location} starts in 30 minutes!`,
+            },
+            data: {
+              requestId: requestId,
+              type: "meeting_reminder",
+            },
+          })
+        );
+      }
+
+      // Send reminder to swiper
+      if (swiperDoc.exists && swiperDoc.data()?.fcmToken) {
+        notifications.push(
+          admin.messaging().send({
+            token: swiperDoc.data().fcmToken,
+            notification: {
+              title: "Meeting Reminder",
+              body: `Your swipe session at ${requestData.location} starts in 30 minutes!`,
+            },
+            data: {
+              requestId: requestId,
+              type: "meeting_reminder",
+            },
+          })
+        );
+      }
+
+      if (notifications.length === 0) {
+        console.log("No FCM tokens found for participants");
+        res.status(200).send("No notifications sent - no FCM tokens");
+        return;
+      }
+
+      // Send all notifications
+      await Promise.all(notifications);
+
+      console.log(
+        `Successfully sent ${notifications.length} reminder notification(s) for request ${requestId}`
+      );
+      res.status(200).send("Reminder notifications sent successfully");
+    } catch (error) {
+      console.error("Error sending reminder notification:", error);
+      res.status(500).send(`Error sending reminder: ${error.message}`);
     }
   }
 );
