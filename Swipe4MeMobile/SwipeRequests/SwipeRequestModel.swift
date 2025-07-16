@@ -131,10 +131,11 @@ struct ChangeProposal: Codable, Identifiable, Equatable, Hashable {
         
         if let proposedMeetingTime = proposedMeetingTime, proposedMeetingTime != request.meetingTime {
             let formatter = DateFormatter()
+            formatter.dateStyle = .short
             formatter.timeStyle = .short
-            let currentTime = formatter.string(from: request.meetingTime.dateValue())
-            let newTime = formatter.string(from: proposedMeetingTime.dateValue())
-            changes.append("Time: \(currentTime) → \(newTime)")
+            let currentDateTime = formatter.string(from: request.meetingTime.dateValue())
+            let newDateTime = formatter.string(from: proposedMeetingTime.dateValue())
+            changes.append("Time: \(currentDateTime) → \(newDateTime)")
         }
         
         return changes.joined(separator: "\n")

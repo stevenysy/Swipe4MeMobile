@@ -313,14 +313,36 @@ struct MessageBubbleView: View {
     @ViewBuilder
     private var proposalMessageView: some View {
         VStack(spacing: 12) {
-            // Proposal content in a card-like view
-            VStack(spacing: 8) {
+            // Proposal content in a card-like view with buttons inside
+            VStack(spacing: 12) {
                 Text(message.content)
                     .font(.subheadline)
                     .foregroundColor(.primary)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 16)
-                    .padding(.vertical, 12)
+                    .padding(.top, 12)
+                
+                // Interactive buttons inside the card (only show if proposal is still pending)
+                if let proposalId = message.proposalId,
+                   proposalStatus == .pending {
+                    
+                    HStack(spacing: 12) {
+                        // Decline button
+                        Button("Decline") {
+                            handleProposalAction(proposalId: proposalId, isAccept: false)
+                        }
+                        .buttonStyle(.bordered)
+                        .foregroundColor(.red)
+                        
+                        // Accept button
+                        Button("Accept") {
+                            handleProposalAction(proposalId: proposalId, isAccept: true)
+                        }
+                        .buttonStyle(.borderedProminent)
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, 12)
+                }
             }
             .background(Color(.secondarySystemGroupedBackground))
             .cornerRadius(12)
@@ -328,27 +350,6 @@ struct MessageBubbleView: View {
                 RoundedRectangle(cornerRadius: 12)
                     .stroke(Color(.systemGray4), lineWidth: 1)
             )
-            
-            // Interactive buttons (only show if proposal is still pending)
-            if let proposalId = message.proposalId,
-               proposalStatus == .pending {
-                
-                HStack(spacing: 12) {
-                    // Decline button
-                    Button("Decline") {
-                        handleProposalAction(proposalId: proposalId, isAccept: false)
-                    }
-                    .buttonStyle(.bordered)
-                    .foregroundColor(.red)
-                    
-                    // Accept button
-                    Button("Accept") {
-                        handleProposalAction(proposalId: proposalId, isAccept: true)
-                    }
-                    .buttonStyle(.borderedProminent)
-                }
-                .padding(.horizontal)
-            }
         }
         .padding(.horizontal)
         .onAppear {
