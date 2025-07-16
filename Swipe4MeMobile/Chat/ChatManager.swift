@@ -156,6 +156,27 @@ final class ChatManager {
         await sendMessage(systemMessage)
     }
     
+    /// Sends an interactive proposal message to a chat room
+    /// - Parameters:
+    ///   - requestId: The ID of the request/chat room
+    ///   - proposalId: The ID of the change proposal
+    ///   - proposerName: Name of who proposed the change
+    ///   - changesDescription: Description of the proposed changes
+    func sendProposalMessage(
+        requestId: String,
+        proposalId: String,
+        proposerName: String,
+        changesDescription: String
+    ) async {
+        let proposalMessage = ChatMessage.createProposalMessage(
+            chatRoomId: requestId,
+            proposalId: proposalId,
+            proposerName: proposerName,
+            changesDescription: changesDescription
+        )
+        await sendMessage(proposalMessage)
+    }
+    
     /// Internal method to send any type of message
     /// - Parameter message: The ChatMessage to send
     private func sendMessage(_ message: ChatMessage) async {

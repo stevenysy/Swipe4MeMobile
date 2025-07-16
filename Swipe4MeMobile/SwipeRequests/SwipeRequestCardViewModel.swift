@@ -45,15 +45,13 @@ final class SwipeRequestCardViewModel {
     }
     
     func handleSubmit(for request: SwipeRequest) {
-        var updatedRequest = request
-        updatedRequest.location = editedLocation
-        updatedRequest.meetingTime = Timestamp(date: editedMeetingTime)
-        
-        swipeRequestManager.addSwipeRequestToDatabase(
-            swipeRequest: updatedRequest, isEdit: true)
-        snackbarManager.show(title: "Request Updated", style: .success)
-        withAnimation(.spring(response: 0.45, dampingFraction: 0.75)) {
-            isEditing = false
+        // Check if this requires approval from the other party
+        if request.status.requiresApprovalForChanges {
+            // Create a change proposal instead of direct update
+            createChangeProposal(for: request)
+        } else {
+            // Direct update for open requests
+            performDirectUpdate(for: request)
         }
     }
     
@@ -75,7 +73,7 @@ final class SwipeRequestCardViewModel {
         guard let request = requestToCancel else { return }
         
         // Determine if current user is the swiper
-        let currentUserId = userManager.userID
+        let currentUserId = UserManager.shared.userID
         let isSwiper = currentUserId == request.swiperId
         
         if isSwiper {
@@ -113,6 +111,76 @@ final class SwipeRequestCardViewModel {
     }
     
     func cancelEditing() {
+        withAnimation(.spring(response: 0.45, dampingFraction: 0.75)) {
+            isEditing = false
+        }
+    }
+    
+    // MARK: - Change Proposal Methods
+    
+    private func createChangeProposal(for request: SwipeRequest) {
+        let currentUserId = UserManager.shared.userID
+        
+        Task {
+            do {
+                // Create the proposal in database
+                let proposalId = try await swipeRequestManager.createChangeProposal(
+                    for: request,
+                    proposedLocation: editedLocation != request.location ? editedLocation : nil,
+                    proposedMeetingTime: Timestamp(date: editedMeetingTime) != request.meetingTime ? Timestamp(date: editedMeetingTime) : nil,
+                    proposedById: currentUserId
+                )
+                
+                // Get user info and send chat message
+                guard let proposerUser = await UserManager.shared.getUser(userId: currentUserId) else {
+                    throw CloudTaskError.invalidResponse
+                }
+                
+                let proposerName = "\(proposerUser.firstName) \(proposerUser.lastName)".trimmingCharacters(in: .whitespaces)
+                
+                // Create proposal with the changes for description
+                let proposal = ChangeProposal(
+                    requestId: request.id!,
+                    proposedById: currentUserId,
+                    proposedLocation: editedLocation != request.location ? editedLocation : nil,
+                    proposedMeetingTime: Timestamp(date: editedMeetingTime) != request.meetingTime ? Timestamp(date: editedMeetingTime) : nil
+                )
+                let changesDescription = proposal.getChangesDescription(comparedTo: request)
+                
+                // Send proposal message to chat
+                await chatManager.sendProposalMessage(
+                    requestId: request.id!,
+                    proposalId: proposalId,
+                    proposerName: proposerName,
+                    changesDescription: changesDescription
+                )
+                
+                snackbarManager.show(title: "Change proposal sent", style: .success)
+                withAnimation(.spring(response: 0.45, dampingFraction: 0.75)) {
+                    isEditing = false
+                }
+            } catch {
+                if error.localizedDescription.contains("invalidResponse") {
+                    snackbarManager.show(title: "No changes detected", style: .info)
+                } else {
+                    snackbarManager.show(title: "Failed to create proposal: \(error.localizedDescription)", style: .error)
+                }
+                withAnimation(.spring(response: 0.45, dampingFraction: 0.75)) {
+                    isEditing = false
+                }
+            }
+        }
+    }
+
+    
+    private func performDirectUpdate(for request: SwipeRequest) {
+        var updatedRequest = request
+        updatedRequest.location = editedLocation
+        updatedRequest.meetingTime = Timestamp(date: editedMeetingTime)
+        
+        swipeRequestManager.addSwipeRequestToDatabase(
+            swipeRequest: updatedRequest, isEdit: true)
+        snackbarManager.show(title: "Request Updated", style: .success)
         withAnimation(.spring(response: 0.45, dampingFraction: 0.75)) {
             isEditing = false
         }
