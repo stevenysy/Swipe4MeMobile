@@ -22,6 +22,7 @@ final class ChatManager {
     var userUnreadCounts: UserUnreadCounts?  // Current user's unread counts
     private var chatRoomListeners: [String: ListenerRegistration] = [:]
     private var chatRoomStatusListeners: [String: ListenerRegistration] = [:]
+    private var proposalStatusListeners: [String: ListenerRegistration] = [:]
     private var unreadCountListener: ListenerRegistration?
     
     private init() {}
@@ -291,7 +292,7 @@ final class ChatManager {
     /// Gets a ChangeProposal by ID
     /// - Parameter proposalId: The proposal ID
     /// - Returns: The ChangeProposal if found
-    private func getProposal(proposalId: String) async -> ChangeProposal? {
+    func getProposal(proposalId: String) async -> ChangeProposal? {
         do {
             let document = try await db.collection("changeProposals").document(proposalId).getDocument()
             return try document.data(as: ChangeProposal.self)
@@ -485,6 +486,45 @@ final class ChatManager {
         chatRoomStatusListeners.removeValue(forKey: chatRoomId)
     }
     
+    /// Starts listening for real-time updates to a proposal's status
+    /// - Parameters:
+    ///   - proposalId: The ID of the proposal to listen to
+    ///   - completion: Callback with the updated proposal status
+    func startListeningToProposalStatus(
+        proposalId: String,
+        completion: @escaping (ProposalStatus) -> Void
+    ) {
+        // Remove existing listener if any
+        stopListeningToProposalStatus(proposalId: proposalId)
+        
+        let listener = db.collection("changeProposals")
+            .document(proposalId)
+            .addSnapshotListener { documentSnapshot, error in
+                if let error = error {
+                    print("Error listening to proposal status: \(error)")
+                    return
+                }
+                
+                guard let document = documentSnapshot,
+                      let data = document.data(),
+                      let statusString = data["status"] as? String,
+                      let status = ProposalStatus(rawValue: statusString) else {
+                    return
+                }
+                
+                completion(status)
+            }
+        
+        proposalStatusListeners[proposalId] = listener
+    }
+    
+    /// Stops listening to proposal status for a specific proposal
+    /// - Parameter proposalId: The ID of the proposal to stop listening to
+    func stopListeningToProposalStatus(proposalId: String) {
+        proposalStatusListeners[proposalId]?.remove()
+        proposalStatusListeners.removeValue(forKey: proposalId)
+    }
+    
     /// Stops all active listeners
     func stopAllListeners() {
         for (_, listener) in chatRoomListeners {
@@ -496,6 +536,11 @@ final class ChatManager {
             listener.remove()
         }
         chatRoomStatusListeners.removeAll()
+        
+        for (_, listener) in proposalStatusListeners {
+            listener.remove()
+        }
+        proposalStatusListeners.removeAll()
         
         stopListeningToUnreadCounts()
     }

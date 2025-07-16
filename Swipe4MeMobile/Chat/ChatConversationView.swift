@@ -254,6 +254,11 @@ struct MessageBubbleView: View {
     let message: ChatMessage
     let isCurrentUser: Bool
     
+    @State private var proposalStatus: ProposalStatus? = nil
+    
+    private let chatManager = ChatManager.shared
+    private let userManager = UserManager.shared
+    
     var body: some View {
         if message.messageType.isSystemMessage {
             // System messages centered with no spacing constraints
@@ -287,17 +292,95 @@ struct MessageBubbleView: View {
     
     @ViewBuilder
     private var systemMessageView: some View {
-        VStack(spacing: 4) {
+        VStack(spacing: 8) {
             // Timestamp centered above the message
             Text(message.timestamp.dateValue().chatTimestamp)
                 .font(.caption2)
                 .foregroundColor(.secondary)
             
-            // System message as plain text
-            Text(message.content)
-                .font(.caption)
-                .foregroundColor(.secondary)
-                .multilineTextAlignment(.center)
+            if message.messageType == .changeProposal {
+                proposalMessageView
+            } else {
+                // Regular system message as plain text
+                Text(message.content)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
+            }
+        }
+    }
+    
+    @ViewBuilder
+    private var proposalMessageView: some View {
+        VStack(spacing: 12) {
+            // Proposal content in a card-like view
+            VStack(spacing: 8) {
+                Text(message.content)
+                    .font(.subheadline)
+                    .foregroundColor(.primary)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
+            }
+            .background(Color(.secondarySystemGroupedBackground))
+            .cornerRadius(12)
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(Color(.systemGray4), lineWidth: 1)
+            )
+            
+            // Interactive buttons (only show if proposal is still pending)
+            if let proposalId = message.proposalId,
+               proposalStatus == .pending {
+                
+                HStack(spacing: 12) {
+                    // Decline button
+                    Button("Decline") {
+                        handleProposalAction(proposalId: proposalId, isAccept: false)
+                    }
+                    .buttonStyle(.bordered)
+                    .foregroundColor(.red)
+                    
+                    // Accept button
+                    Button("Accept") {
+                        handleProposalAction(proposalId: proposalId, isAccept: true)
+                    }
+                    .buttonStyle(.borderedProminent)
+                }
+                .padding(.horizontal)
+            }
+        }
+        .padding(.horizontal)
+        .onAppear {
+            // Start listening to proposal status when view appears
+            if let proposalId = message.proposalId {
+                startListeningToProposalStatus(proposalId: proposalId)
+            }
+        }
+        .onDisappear {
+            // Clean up listener when view disappears
+            if let proposalId = message.proposalId {
+                chatManager.stopListeningToProposalStatus(proposalId: proposalId)
+            }
+        }
+    }
+    
+    private func startListeningToProposalStatus(proposalId: String) {
+        chatManager.startListeningToProposalStatus(proposalId: proposalId) { status in
+            proposalStatus = status
+        }
+    }
+    
+    private func handleProposalAction(proposalId: String, isAccept: Bool) {
+        let currentUserId = userManager.userID
+        
+        Task {
+            if isAccept {
+                await chatManager.acceptProposal(proposalId: proposalId, responderId: currentUserId)
+            } else {
+                await chatManager.declineProposal(proposalId: proposalId, responderId: currentUserId)
+            }
+            // No need to manually refresh - the listener will handle it!
         }
     }
     
