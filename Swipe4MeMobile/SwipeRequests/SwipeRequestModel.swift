@@ -68,6 +68,102 @@ extension RequestStatus {
         case .canceled: .red
         }
     }
+    
+    /// Determines if changes to this request require approval from the other party
+    var requiresApprovalForChanges: Bool {
+        switch self {
+        case .open:
+            return false // Free edits for open requests
+        case .scheduled, .inProgress:
+            return true // Both parties need approval for scheduled/in-progress requests
+        case .awaitingReview, .complete, .canceled:
+            return false // No edits allowed for these statuses
+        }
+    }
+}
+
+// MARK: - Change Proposal Models
+
+struct ChangeProposal: Codable, Identifiable, Equatable, Hashable {
+    @DocumentID var id: String?
+    let requestId: String
+    let proposedById: String // User ID of who proposed the change
+    let proposedLocation: DiningLocation?
+    let proposedMeetingTime: Timestamp?
+    var status: ProposalStatus
+    let createdAt: Timestamp
+    var respondedAt: Timestamp?
+    var respondedById: String? // User ID of who responded (accepted/declined)
+    
+    init(
+        requestId: String,
+        proposedById: String,
+        proposedLocation: DiningLocation? = nil,
+        proposedMeetingTime: Timestamp? = nil,
+        status: ProposalStatus = .pending
+    ) {
+        self.requestId = requestId
+        self.proposedById = proposedById
+        self.proposedLocation = proposedLocation
+        self.proposedMeetingTime = proposedMeetingTime
+        self.status = status
+        self.createdAt = Timestamp()
+    }
+    
+    /// Checks if the proposal has any actual changes
+    func hasChanges(comparedTo request: SwipeRequest) -> Bool {
+        if let proposedLocation = proposedLocation, proposedLocation != request.location {
+            return true
+        }
+        if let proposedMeetingTime = proposedMeetingTime, proposedMeetingTime != request.meetingTime {
+            return true
+        }
+        return false
+    }
+    
+    /// Gets a human-readable description of the proposed changes
+    func getChangesDescription(comparedTo request: SwipeRequest) -> String {
+        var changes: [String] = []
+        
+        if let proposedLocation = proposedLocation, proposedLocation != request.location {
+            changes.append("Location: \(request.location.rawValue) → \(proposedLocation.rawValue)")
+        }
+        
+        if let proposedMeetingTime = proposedMeetingTime, proposedMeetingTime != request.meetingTime {
+            let formatter = DateFormatter()
+            formatter.timeStyle = .short
+            let currentTime = formatter.string(from: request.meetingTime.dateValue())
+            let newTime = formatter.string(from: proposedMeetingTime.dateValue())
+            changes.append("Time: \(currentTime) → \(newTime)")
+        }
+        
+        return changes.joined(separator: "\n")
+    }
+}
+
+enum ProposalStatus: String, Codable, CaseIterable {
+    case pending
+    case accepted
+    case declined
+    
+    var displayName: String {
+        switch self {
+        case .pending:
+            return "Pending"
+        case .accepted:
+            return "Accepted"
+        case .declined:
+            return "Declined"
+        }
+    }
+    
+    var color: Color {
+        switch self {
+        case .pending: .orange
+        case .accepted: .green
+        case .declined: .red
+        }
+    }
 }
 
 enum DiningLocation: String, CaseIterable, Identifiable, Codable {
