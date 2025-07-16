@@ -161,18 +161,18 @@ final class ChatManager {
     /// - Parameters:
     ///   - requestId: The ID of the request/chat room
     ///   - proposalId: The ID of the change proposal
-    ///   - proposerName: Name of who proposed the change
+    ///   - proposerId: User ID of who proposed the change
     ///   - changesDescription: Description of the proposed changes
     func sendProposalMessage(
         requestId: String,
         proposalId: String,
-        proposerName: String,
+        proposerId: String,
         changesDescription: String
     ) async {
         let proposalMessage = ChatMessage.createProposalMessage(
             chatRoomId: requestId,
             proposalId: proposalId,
-            proposerName: proposerName,
+            proposerId: proposerId,
             changesDescription: changesDescription
         )
         await sendMessage(proposalMessage)

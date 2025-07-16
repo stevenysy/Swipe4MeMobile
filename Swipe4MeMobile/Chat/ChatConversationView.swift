@@ -268,16 +268,20 @@ struct MessageBubbleView: View {
                 Spacer()
             }
         } else {
-            // User messages with normal bubble layout
+            // User messages and proposals with normal bubble layout
             HStack {
                 if isCurrentUser {
                     Spacer(minLength: 50)
                 }
                 
                 VStack(alignment: isCurrentUser ? .trailing : .leading, spacing: 4) {
-                    userMessageView
+                    if message.messageType == .changeProposal {
+                        proposalMessageView
+                    } else {
+                        userMessageView
+                    }
                     
-                    // Timestamp for user messages only
+                    // Timestamp for user messages and proposals
                     Text(message.timestamp.dateValue().chatTimestamp)
                         .font(.caption2)
                         .foregroundColor(.secondary)
@@ -313,45 +317,42 @@ struct MessageBubbleView: View {
     @ViewBuilder
     private var proposalMessageView: some View {
         VStack(spacing: 12) {
-            // Proposal content in a card-like view with buttons inside
-            VStack(spacing: 12) {
-                Text(message.content)
-                    .font(.subheadline)
-                    .foregroundColor(.primary)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, 16)
-                    .padding(.top, 12)
+            Text(message.content)
+                .font(.body)
+                .foregroundColor(isCurrentUser ? .white : .primary)
+                .multilineTextAlignment(.leading)
+                .padding(.horizontal, 16)
+                .padding(.top, 12)
+            
+            // Interactive buttons inside the card (only show for recipient if proposal is still pending)
+            if let proposalId = message.proposalId,
+               !isCurrentUser, // Hide buttons for proposer
+               proposalStatus == .pending {
                 
-                // Interactive buttons inside the card (only show if proposal is still pending)
-                if let proposalId = message.proposalId,
-                   proposalStatus == .pending {
-                    
-                    HStack(spacing: 12) {
-                        // Decline button
-                        Button("Decline") {
-                            handleProposalAction(proposalId: proposalId, isAccept: false)
-                        }
-                        .buttonStyle(.bordered)
-                        .foregroundColor(.red)
-                        
-                        // Accept button
-                        Button("Accept") {
-                            handleProposalAction(proposalId: proposalId, isAccept: true)
-                        }
-                        .buttonStyle(.borderedProminent)
+                HStack(spacing: 12) {
+                    // Decline button
+                    Button("Decline") {
+                        handleProposalAction(proposalId: proposalId, isAccept: false)
                     }
-                    .padding(.horizontal, 16)
-                    .padding(.bottom, 12)
+                    .buttonStyle(.bordered)
+                    .foregroundColor(.red)
+                    
+                    // Accept button
+                    Button("Accept") {
+                        handleProposalAction(proposalId: proposalId, isAccept: true)
+                    }
+                    .buttonStyle(.borderedProminent)
                 }
+                .padding(.horizontal, 16)
+                .padding(.bottom, 12)
+            } else if message.proposalId != nil {
+                // Add some bottom padding if no buttons are shown
+                Spacer()
+                    .frame(height: 12)
             }
-            .background(Color(.secondarySystemGroupedBackground))
-            .cornerRadius(12)
-            .overlay(
-                RoundedRectangle(cornerRadius: 12)
-                    .stroke(Color(.systemGray4), lineWidth: 1)
-            )
         }
-        .padding(.horizontal)
+        .background(isCurrentUser ? Color.blue : Color(.systemGray5))
+        .cornerRadius(16)
         .onAppear {
             // Start listening to proposal status when view appears
             if let proposalId = message.proposalId {

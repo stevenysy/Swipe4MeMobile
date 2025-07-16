@@ -180,7 +180,7 @@ extension ChatMessage {
         }
         
         var isSystemMessage: Bool {
-            return self == .systemNotification || self == .changeProposal
+            return self == .systemNotification
         }
         
         var isInteractive: Bool {
@@ -265,14 +265,14 @@ extension ChatMessage {
     static func createProposalMessage(
         chatRoomId: String,
         proposalId: String,
-        proposerName: String,
+        proposerId: String,
         changesDescription: String
     ) -> ChatMessage {
-        let content = "\(proposerName) proposed changes to the request:\n\n\(changesDescription)"
+        let content = "Proposed changes:\n\n\(changesDescription)"
         
         return ChatMessage(
             chatRoomId: chatRoomId,
-            senderId: "system",
+            senderId: proposerId,
             content: content,
             messageType: .changeProposal,
             proposalId: proposalId

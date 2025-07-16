@@ -131,13 +131,6 @@ final class SwipeRequestCardViewModel {
                     proposedById: currentUserId
                 )
                 
-                // Get user info and send chat message
-                guard let proposerUser = await UserManager.shared.getUser(userId: currentUserId) else {
-                    throw CloudTaskError.invalidResponse
-                }
-                
-                let proposerName = "\(proposerUser.firstName) \(proposerUser.lastName)".trimmingCharacters(in: .whitespaces)
-                
                 // Create proposal with the changes for description
                 let proposal = ChangeProposal(
                     requestId: request.id!,
@@ -151,7 +144,7 @@ final class SwipeRequestCardViewModel {
                 await chatManager.sendProposalMessage(
                     requestId: request.id!,
                     proposalId: proposalId,
-                    proposerName: proposerName,
+                    proposerId: currentUserId,
                     changesDescription: changesDescription
                 )
                 
