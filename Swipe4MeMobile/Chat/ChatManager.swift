@@ -332,8 +332,8 @@ final class ChatManager {
             ]
             try await db.collection("chatRooms").document(message.chatRoomId).updateData(updateData)
             
-            // For user messages (not system messages), increment unread count for recipient
-            if message.messageType == .userMessage,
+            // Increment unread count for recipient if message type requires it
+            if message.messageType.shouldIncrementUnreadCount,
                let currentUserId = Auth.auth().currentUser?.uid,
                let chatRoom = await getChatRoom(for: message.chatRoomId),
                let recipientId = chatRoom.getOtherParticipantId(currentUserId: currentUserId) {

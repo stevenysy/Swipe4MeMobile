@@ -186,6 +186,16 @@ extension ChatMessage {
         var isInteractive: Bool {
             return self == .changeProposal
         }
+        
+        /// Determines if this message type should increment unread counts for recipients
+        var shouldIncrementUnreadCount: Bool {
+            switch self {
+            case .userMessage, .changeProposal:
+                return true // User-generated content that requires attention
+            case .systemNotification:
+                return false // Informational only, don't increment unread
+            }
+        }
     }
 }
 
