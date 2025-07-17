@@ -499,12 +499,12 @@ struct StatusBadge: View {
 
 // MARK: - Preview
 
-#Preview {
-    NavigationView {
-        ChatConversationView(
-            chatRoom: ChatRoom.mockChatRoom,
-            swipeRequest: SwipeRequest.mockRequests[0]
-        )
-    }
-} 
+//#Preview {
+//    NavigationView {
+//        ChatConversationView(
+//            chatRoom: ChatRoom.mockChatRoom,
+//            swipeRequest: SwipeRequest.mockRequests[0]
+//        )
+//    }
+//} 
 
