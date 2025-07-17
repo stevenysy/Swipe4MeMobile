@@ -22,6 +22,7 @@ final class ChatManager {
     var userUnreadCounts: UserUnreadCounts?  // Current user's unread counts
     private var chatRoomListeners: [String: ListenerRegistration] = [:]
     private var chatRoomStatusListeners: [String: ListenerRegistration] = [:]
+    private var proposalStatusListeners: [String: ListenerRegistration] = [:]
     private var unreadCountListener: ListenerRegistration?
     
     private init() {}
@@ -156,6 +157,164 @@ final class ChatManager {
         await sendMessage(systemMessage)
     }
     
+    /// Sends an interactive proposal message to a chat room
+    /// - Parameters:
+    ///   - requestId: The ID of the request/chat room
+    ///   - proposalId: The ID of the change proposal
+    ///   - proposerId: User ID of who proposed the change
+    ///   - changesDescription: Description of the proposed changes
+    func sendProposalMessage(
+        requestId: String,
+        proposalId: String,
+        proposerId: String,
+        changesDescription: String
+    ) async {
+        let proposalMessage = ChatMessage.createProposalMessage(
+            chatRoomId: requestId,
+            proposalId: proposalId,
+            proposerId: proposerId,
+            changesDescription: changesDescription
+        )
+        await sendMessage(proposalMessage)
+    }
+    
+    // MARK: - Proposal Response Management
+    
+    /// Accepts a change proposal and applies the changes
+    /// - Parameters:
+    ///   - proposalId: The ID of the proposal to accept
+    ///   - responderId: The user ID of who is accepting
+    func acceptProposal(proposalId: String, responderId: String) async {
+        do {
+            // Update proposal status to accepted
+            let updateData: [String: Any] = [
+                "status": "accepted",
+                "respondedAt": Timestamp(),
+                "respondedById": responderId
+            ]
+            try await db.collection("changeProposals").document(proposalId).updateData(updateData)
+            
+            // Get the proposal and original request
+            guard let proposal = await getProposal(proposalId: proposalId),
+                  let originalRequest = await getSwipeRequest(requestId: proposal.requestId) else {
+                errorMessage = "Failed to get proposal or request data"
+                return
+            }
+            
+            // Apply the changes to the original request
+            await applyProposalChanges(proposal: proposal, to: originalRequest)
+            
+            // Send acceptance message
+            let responderName = await getUserName(userId: responderId)
+            let changesDescription = proposal.getChangesDescription(comparedTo: originalRequest)
+            let acceptMessage = ChatMessage.proposalAccepted(
+                chatRoomId: proposal.requestId,
+                acceptedBy: responderName,
+                changesDescription: changesDescription
+            )
+            await sendMessage(acceptMessage)
+            
+        } catch {
+            errorMessage = "Failed to accept proposal: \(error.localizedDescription)"
+            print("Error accepting proposal: \(error)")
+        }
+    }
+    
+    /// Declines a change proposal
+    /// - Parameters:
+    ///   - proposalId: The ID of the proposal to decline
+    ///   - responderId: The user ID of who is declining
+    func declineProposal(proposalId: String, responderId: String) async {
+        do {
+            // Update proposal status to declined
+            let updateData: [String: Any] = [
+                "status": "declined",
+                "respondedAt": Timestamp(),
+                "respondedById": responderId
+            ]
+            try await db.collection("changeProposals").document(proposalId).updateData(updateData)
+            
+            // Get proposal for messaging
+            guard let proposal = await getProposal(proposalId: proposalId) else {
+                errorMessage = "Failed to get proposal data"
+                return
+            }
+            
+            // Send decline message
+            let responderName = await getUserName(userId: responderId)
+            let declineMessage = ChatMessage.proposalDeclined(
+                chatRoomId: proposal.requestId,
+                declinedBy: responderName
+            )
+            await sendMessage(declineMessage)
+            
+        } catch {
+            errorMessage = "Failed to decline proposal: \(error.localizedDescription)"
+            print("Error declining proposal: \(error)")
+        }
+    }
+    
+    /// Applies approved proposal changes to the original request
+    /// - Parameters:
+    ///   - proposal: The approved ChangeProposal
+    ///   - originalRequest: The original SwipeRequest to update
+    private func applyProposalChanges(proposal: ChangeProposal, to originalRequest: SwipeRequest) async {
+        do {
+            var updatedRequest = originalRequest
+            
+            // Apply location change if proposed
+            if let proposedLocation = proposal.proposedLocation {
+                updatedRequest.location = proposedLocation
+            }
+            
+            // Apply meeting time change if proposed
+            if let proposedMeetingTime = proposal.proposedMeetingTime {
+                updatedRequest.meetingTime = proposedMeetingTime
+            }
+            
+            // Update the request in database
+            guard let requestId = updatedRequest.id else {
+                errorMessage = "Invalid request ID for applying changes"
+                return
+            }
+            
+            try db.collection("swipeRequests").document(requestId).setData(from: updatedRequest)
+            print("Applied proposal changes to request: \(requestId)")
+            
+        } catch {
+            errorMessage = "Failed to apply proposal changes: \(error.localizedDescription)"
+            print("Error applying proposal changes: \(error)")
+        }
+    }
+    
+    // MARK: - Helper Methods for Proposals
+    
+    /// Gets a ChangeProposal by ID
+    /// - Parameter proposalId: The proposal ID
+    /// - Returns: The ChangeProposal if found
+    func getProposal(proposalId: String) async -> ChangeProposal? {
+        do {
+            let document = try await db.collection("changeProposals").document(proposalId).getDocument()
+            return try document.data(as: ChangeProposal.self)
+        } catch {
+            print("Error fetching proposal: \(error)")
+            return nil
+        }
+    }
+    
+    /// Gets a SwipeRequest by ID
+    /// - Parameter requestId: The request ID
+    /// - Returns: The SwipeRequest if found
+    private func getSwipeRequest(requestId: String) async -> SwipeRequest? {
+        do {
+            let document = try await db.collection("swipeRequests").document(requestId).getDocument()
+            return try document.data(as: SwipeRequest.self)
+        } catch {
+            print("Error fetching swipe request: \(error)")
+            return nil
+        }
+    }
+    
     /// Internal method to send any type of message
     /// - Parameter message: The ChatMessage to send
     private func sendMessage(_ message: ChatMessage) async {
@@ -173,8 +332,8 @@ final class ChatManager {
             ]
             try await db.collection("chatRooms").document(message.chatRoomId).updateData(updateData)
             
-            // For user messages (not system messages), increment unread count for recipient
-            if message.messageType == .userMessage,
+            // Increment unread count for recipient if message type requires it
+            if message.messageType.shouldIncrementUnreadCount,
                let currentUserId = Auth.auth().currentUser?.uid,
                let chatRoom = await getChatRoom(for: message.chatRoomId),
                let recipientId = chatRoom.getOtherParticipantId(currentUserId: currentUserId) {
@@ -327,6 +486,45 @@ final class ChatManager {
         chatRoomStatusListeners.removeValue(forKey: chatRoomId)
     }
     
+    /// Starts listening for real-time updates to a proposal's status
+    /// - Parameters:
+    ///   - proposalId: The ID of the proposal to listen to
+    ///   - completion: Callback with the updated proposal status
+    func startListeningToProposalStatus(
+        proposalId: String,
+        completion: @escaping (ProposalStatus) -> Void
+    ) {
+        // Remove existing listener if any
+        stopListeningToProposalStatus(proposalId: proposalId)
+        
+        let listener = db.collection("changeProposals")
+            .document(proposalId)
+            .addSnapshotListener { documentSnapshot, error in
+                if let error = error {
+                    print("Error listening to proposal status: \(error)")
+                    return
+                }
+                
+                guard let document = documentSnapshot,
+                      let data = document.data(),
+                      let statusString = data["status"] as? String,
+                      let status = ProposalStatus(rawValue: statusString) else {
+                    return
+                }
+                
+                completion(status)
+            }
+        
+        proposalStatusListeners[proposalId] = listener
+    }
+    
+    /// Stops listening to proposal status for a specific proposal
+    /// - Parameter proposalId: The ID of the proposal to stop listening to
+    func stopListeningToProposalStatus(proposalId: String) {
+        proposalStatusListeners[proposalId]?.remove()
+        proposalStatusListeners.removeValue(forKey: proposalId)
+    }
+    
     /// Stops all active listeners
     func stopAllListeners() {
         for (_, listener) in chatRoomListeners {
@@ -338,6 +536,11 @@ final class ChatManager {
             listener.remove()
         }
         chatRoomStatusListeners.removeAll()
+        
+        for (_, listener) in proposalStatusListeners {
+            listener.remove()
+        }
+        proposalStatusListeners.removeAll()
         
         stopListeningToUnreadCounts()
     }

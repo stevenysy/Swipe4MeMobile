@@ -254,6 +254,11 @@ struct MessageBubbleView: View {
     let message: ChatMessage
     let isCurrentUser: Bool
     
+    @State private var proposalStatus: ProposalStatus? = nil
+    
+    private let chatManager = ChatManager.shared
+    private let userManager = UserManager.shared
+    
     var body: some View {
         if message.messageType.isSystemMessage {
             // System messages centered with no spacing constraints
@@ -261,6 +266,44 @@ struct MessageBubbleView: View {
                 Spacer()
                 systemMessageView
                 Spacer()
+            }
+        } else if message.messageType == .changeProposal {
+            // Change proposals follow same positioning as regular messages but with card style
+            HStack {
+                if isCurrentUser {
+                    Spacer(minLength: 50)
+                }
+                
+                VStack(alignment: isCurrentUser ? .trailing : .leading, spacing: 4) {
+                    ChangeProposalCardView(
+                        message: message,
+                        isCurrentUser: isCurrentUser,
+                        proposalStatus: proposalStatus
+                    ) { proposalId, isAccept in
+                        handleProposalAction(proposalId: proposalId, isAccept: isAccept)
+                    }
+                    .onAppear {
+                        // Start listening to proposal status when view appears
+                        if let proposalId = message.proposalId {
+                            startListeningToProposalStatus(proposalId: proposalId)
+                        }
+                    }
+                    .onDisappear {
+                        // Clean up listener when view disappears
+                        if let proposalId = message.proposalId {
+                            chatManager.stopListeningToProposalStatus(proposalId: proposalId)
+                        }
+                    }
+                    
+                    // Timestamp for proposal messages
+                    Text(message.timestamp.dateValue().chatTimestamp)
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                }
+                
+                if !isCurrentUser {
+                    Spacer(minLength: 50)
+                }
             }
         } else {
             // User messages with normal bubble layout
@@ -272,7 +315,7 @@ struct MessageBubbleView: View {
                 VStack(alignment: isCurrentUser ? .trailing : .leading, spacing: 4) {
                     userMessageView
                     
-                    // Timestamp for user messages only
+                    // Timestamp for user messages
                     Text(message.timestamp.dateValue().chatTimestamp)
                         .font(.caption2)
                         .foregroundColor(.secondary)
@@ -287,17 +330,36 @@ struct MessageBubbleView: View {
     
     @ViewBuilder
     private var systemMessageView: some View {
-        VStack(spacing: 4) {
+        VStack(spacing: 8) {
             // Timestamp centered above the message
             Text(message.timestamp.dateValue().chatTimestamp)
                 .font(.caption2)
                 .foregroundColor(.secondary)
             
-            // System message as plain text
+            // Regular system message as plain text
             Text(message.content)
                 .font(.caption)
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
+        }
+    }
+    
+    private func startListeningToProposalStatus(proposalId: String) {
+        chatManager.startListeningToProposalStatus(proposalId: proposalId) { status in
+            proposalStatus = status
+        }
+    }
+    
+    private func handleProposalAction(proposalId: String, isAccept: Bool) {
+        let currentUserId = userManager.userID
+        
+        Task {
+            if isAccept {
+                await chatManager.acceptProposal(proposalId: proposalId, responderId: currentUserId)
+            } else {
+                await chatManager.declineProposal(proposalId: proposalId, responderId: currentUserId)
+            }
+            // No need to manually refresh - the listener will handle it!
         }
     }
     
@@ -313,13 +375,136 @@ struct MessageBubbleView: View {
     }
 }
 
-// MARK: - Preview
+// MARK: - Change Proposal Card View
 
-#Preview {
-    NavigationView {
-        ChatConversationView(
-            chatRoom: ChatRoom.mockChatRoom,
-            swipeRequest: SwipeRequest.mockRequests[0]
+struct ChangeProposalCardView: View {
+    let message: ChatMessage
+    let isCurrentUser: Bool
+    let proposalStatus: ProposalStatus?
+    let onAction: (String, Bool) -> Void
+    
+    var body: some View {
+        VStack(spacing: 0) {
+            // Header with status indicator
+            HStack {
+                Image(systemName: "pencil.and.scribble")
+                    .foregroundColor(.blue)
+                    .font(.title3)
+                
+                Text("Change Proposal")
+                    .font(.headline)
+                    .foregroundColor(.primary)
+                
+                Spacer()
+                
+                if let status = proposalStatus {
+                    StatusBadge(status: status)
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.top, 16)
+            .padding(.bottom, 12)
+            
+            Divider()
+                .padding(.horizontal, 16)
+            
+                         // Proposal content
+             VStack(alignment: .leading, spacing: 12) {
+                 Text(message.content)
+                     .font(.body)
+                     .foregroundColor(.primary)
+                     .multilineTextAlignment(.leading)
+                     .frame(maxWidth: .infinity, alignment: .leading)
+             }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
+            
+            // Action buttons (only show for recipient if proposal is still pending)
+            if let proposalId = message.proposalId,
+               !isCurrentUser, // Hide buttons for proposer
+               proposalStatus == .pending {
+                
+                Divider()
+                    .padding(.horizontal, 16)
+                
+                HStack(spacing: 12) {
+                    // Decline button
+                    Button(action: {
+                        onAction(proposalId, false)
+                    }) {
+                        Text("Decline")
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+                            .foregroundColor(.red)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 10)
+                            .background(.red.opacity(0.1))
+                            .cornerRadius(8)
+                    }
+                    
+                    // Accept button
+                    Button(action: {
+                        onAction(proposalId, true)
+                    }) {
+                        Text("Accept")
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 10)
+                            .background(.blue)
+                            .cornerRadius(8)
+                    }
+                }
+                .padding(.horizontal, 16)
+                .padding(.bottom, 16)
+            } else {
+                // Add some bottom padding if no buttons are shown
+                Spacer()
+                    .frame(height: 16)
+            }
+        }
+        .background(Color(.systemBackground))
+        .cornerRadius(12)
+        .shadow(color: .black.opacity(0.1), radius: 8, x: 0, y: 2)
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(Color(.systemGray4), lineWidth: 1)
         )
     }
-} 
+}
+
+// MARK: - Status Badge
+
+struct StatusBadge: View {
+    let status: ProposalStatus
+    
+    var body: some View {
+        HStack(spacing: 4) {
+            Circle()
+                .fill(status.color)
+                .frame(width: 6, height: 6)
+            
+            Text(status.displayName)
+                .font(.caption)
+                .fontWeight(.medium)
+                .foregroundColor(status.color)
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
+        .background(status.color.opacity(0.15))
+        .cornerRadius(12)
+    }
+}
+
+// MARK: - Preview
+
+//#Preview {
+//    NavigationView {
+//        ChatConversationView(
+//            chatRoom: ChatRoom.mockChatRoom,
+//            swipeRequest: SwipeRequest.mockRequests[0]
+//        )
+//    }
+//} 
+

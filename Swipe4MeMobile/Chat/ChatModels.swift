@@ -140,18 +140,23 @@ struct ChatMessage: Codable, Identifiable, Equatable, Hashable {
     let timestamp: Timestamp
     let messageType: MessageType
     
+    // MARK: - Change Proposal Fields
+    var proposalId: String? // Links to ChangeProposal document
+    
     init(
         chatRoomId: String,
         senderId: String,
         content: String,
         timestamp: Timestamp = Timestamp(),
-        messageType: MessageType = .userMessage
+        messageType: MessageType = .userMessage,
+        proposalId: String? = nil
     ) {
         self.chatRoomId = chatRoomId
         self.senderId = senderId
         self.content = content
         self.timestamp = timestamp
         self.messageType = messageType
+        self.proposalId = proposalId
     }
 }
 
@@ -161,6 +166,7 @@ extension ChatMessage {
     enum MessageType: String, Codable, CaseIterable {
         case userMessage = "userMessage"
         case systemNotification = "systemNotification"
+        case changeProposal = "changeProposal"
         
         var displayName: String {
             switch self {
@@ -168,14 +174,32 @@ extension ChatMessage {
                 return "Message"
             case .systemNotification:
                 return "System Notification"
+            case .changeProposal:
+                return "Change Proposal"
             }
         }
         
         var isSystemMessage: Bool {
             return self == .systemNotification
         }
+        
+        var isInteractive: Bool {
+            return self == .changeProposal
+        }
+        
+        /// Determines if this message type should increment unread counts for recipients
+        var shouldIncrementUnreadCount: Bool {
+            switch self {
+            case .userMessage, .changeProposal:
+                return true // User-generated content that requires attention
+            case .systemNotification:
+                return false // Informational only, don't increment unread
+            }
+        }
     }
 }
+
+
 
 // MARK: - System Message Helpers
 
@@ -242,6 +266,42 @@ extension ChatMessage {
         return createSystemMessage(
             chatRoomId: chatRoomId,
             content: "This chat has been closed due to request cancellation"
+        )
+    }
+    
+    // MARK: - Change Proposal Messages
+    
+    /// Creates an interactive proposal message
+    static func createProposalMessage(
+        chatRoomId: String,
+        proposalId: String,
+        proposerId: String,
+        changesDescription: String
+    ) -> ChatMessage {
+        let content = "Proposed changes:\n\n\(changesDescription)"
+        
+        return ChatMessage(
+            chatRoomId: chatRoomId,
+            senderId: proposerId,
+            content: content,
+            messageType: .changeProposal,
+            proposalId: proposalId
+        )
+    }
+    
+    /// Creates system message for proposal acceptance
+    static func proposalAccepted(chatRoomId: String, acceptedBy: String, changesDescription: String) -> ChatMessage {
+        return createSystemMessage(
+            chatRoomId: chatRoomId,
+            content: "\(acceptedBy) accepted the proposed changes:\n\(changesDescription)"
+        )
+    }
+    
+    /// Creates system message for proposal decline
+    static func proposalDeclined(chatRoomId: String, declinedBy: String) -> ChatMessage {
+        return createSystemMessage(
+            chatRoomId: chatRoomId,
+            content: "\(declinedBy) declined the proposed changes"
         )
     }
 }

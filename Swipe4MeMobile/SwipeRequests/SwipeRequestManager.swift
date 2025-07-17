@@ -197,4 +197,35 @@ final class SwipeRequestManager {
             )
         }
     }
+    
+    // MARK: - Change Proposals
+    
+    /// Creates a change proposal and returns the proposal ID
+    func createChangeProposal(
+        for request: SwipeRequest,
+        proposedLocation: DiningLocation?,
+        proposedMeetingTime: Timestamp?,
+        proposedById: String
+    ) async throws -> String {
+        guard let requestId = request.id else {
+            throw CloudTaskError.invalidResponse
+        }
+        
+        // Create the proposal
+        let proposal = ChangeProposal(
+            requestId: requestId,
+            proposedById: proposedById,
+            proposedLocation: proposedLocation,
+            proposedMeetingTime: proposedMeetingTime
+        )
+        
+        // Validate changes
+        guard proposal.hasChanges(comparedTo: request) else {
+            throw CloudTaskError.invalidResponse // No changes to propose
+        }
+        
+        // Save proposal to database and return the ID
+        let proposalRef = try db.collection("changeProposals").addDocument(from: proposal)
+        return proposalRef.documentID
+    }
 }

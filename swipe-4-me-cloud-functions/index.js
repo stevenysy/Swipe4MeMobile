@@ -375,9 +375,14 @@ exports.sendChatMessageNotification = onDocumentCreated(
 
     console.log(`New message in chat room ${chatRoomId}: ${messageId}`);
 
-    // Skip system messages - only send notifications for user messages
-    if (messageData.messageType !== "userMessage") {
-      console.log("Skipping system message notification");
+    // Send notifications for user messages and change proposals (skip system messages)
+    if (
+      messageData.messageType !== "userMessage" &&
+      messageData.messageType !== "changeProposal"
+    ) {
+      console.log(
+        `Skipping notification for message type: ${messageData.messageType}`
+      );
       return;
     }
 
@@ -461,17 +466,28 @@ exports.sendChatMessageNotification = onDocumentCreated(
         locationContext = ` (${requestData.location})`;
       }
 
+      // Customize notification based on message type
+      let notificationTitle = `${senderName}${locationContext}`;
+      let notificationBody = messageData.content;
+      let notificationType = "chat_message";
+
+      if (messageData.messageType === "changeProposal") {
+        notificationTitle = `${senderName} sent a change proposal${locationContext}`;
+        notificationBody = "Tap to view and respond to the proposed changes";
+        notificationType = "change_proposal";
+      }
+
       // Send the notification
       await admin.messaging().send({
         token: fcmToken,
         notification: {
-          title: `${senderName}${locationContext}`,
-          body: messageData.content,
+          title: notificationTitle,
+          body: notificationBody,
         },
         data: {
           chatRoomId: chatRoomId,
           messageId: messageId,
-          type: "chat_message",
+          type: notificationType,
           senderId: senderId,
         },
       });
