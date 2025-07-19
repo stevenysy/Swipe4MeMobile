@@ -80,9 +80,20 @@ extension AppDelegate: UNUserNotificationCenterDelegate {
         
         completionHandler()
     }
-
+    
     private func shouldOpenChat(for notificationType: String) -> Bool {
-        return notificationType == "chat_message" || notificationType == "change_proposal"
+        switch notificationType {
+        case "chatMessage":
+            return true
+        case "changeProposal":
+            return true
+        case "proposalAccepted":
+            return true
+        case "proposalDeclined":
+            return true
+        default:
+            return false
+        }
     }
 }
 

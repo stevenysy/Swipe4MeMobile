@@ -276,7 +276,7 @@ exports.sendReminderNotification = functions.https.onRequest(
             },
             data: {
               requestId: requestId,
-              type: "meeting_reminder",
+              type: "meetingReminder",
             },
           })
         );
@@ -293,7 +293,7 @@ exports.sendReminderNotification = functions.https.onRequest(
             },
             data: {
               requestId: requestId,
-              type: "meeting_reminder",
+              type: "meetingReminder",
             },
           })
         );
@@ -471,20 +471,20 @@ exports.sendChatMessageNotification = onDocumentCreated(
       // Customize notification based on message type
       let notificationTitle = `${senderName}${locationContext}`;
       let notificationBody = messageData.content;
-      let notificationType = "chat_message";
+      let notificationType = "chatMessage";
 
       if (messageData.messageType === "changeProposal") {
         notificationTitle = `${senderName} sent a change proposal${locationContext}`;
         notificationBody = "Tap to view and respond to the proposed changes";
-        notificationType = "change_proposal";
+        notificationType = "changeProposal";
       } else if (messageData.messageType === "proposalAccepted") {
         notificationTitle = `${senderName} accepted your proposal${locationContext}`;
         notificationBody = "Your proposed changes have been accepted";
-        notificationType = "proposal_accepted";
+        notificationType = "proposalAccepted";
       } else if (messageData.messageType === "proposalDeclined") {
         notificationTitle = `${senderName} declined your proposal${locationContext}`;
         notificationBody = "Your proposed changes were declined";
-        notificationType = "proposal_declined";
+        notificationType = "proposalDeclined";
       }
 
       // Send the notification
