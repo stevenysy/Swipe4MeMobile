@@ -12,15 +12,14 @@ struct ChatConversationView: View {
     let chatRoom: ChatRoom
     let swipeRequest: SwipeRequest
     
-    @State private var messages: [ChatMessage] = []
-    @State private var messageText = ""
-    @State private var isLoading = true
-    @State private var isChatActive = true
-    
+    @State private var viewModel: ChatConversationViewModel
     @Environment(\.dismiss) private var dismiss
     
-    private let chatManager = ChatManager.shared
-    private let userManager = UserManager.shared
+    init(chatRoom: ChatRoom, swipeRequest: SwipeRequest) {
+        self.chatRoom = chatRoom
+        self.swipeRequest = swipeRequest
+        self._viewModel = State(initialValue: ChatConversationViewModel(chatRoom: chatRoom, swipeRequest: swipeRequest))
+    }
     
     var body: some View {
         VStack(spacing: 0) {
@@ -39,27 +38,10 @@ struct ChatConversationView: View {
         }
         .navigationBarHidden(true)
         .onAppear {
-            startListeningToMessages()
-            isChatActive = chatRoom.isActive
-            
-            Task {
-                // Set active chat for notification filtering
-                await chatManager.setActiveChat(chatRoom.requestId)
-                
-                // Reset unread count when user opens the chat
-                await chatManager.resetUnreadCount(for: chatRoom.requestId)
-            }
+            viewModel.onAppear()
         }
         .onDisappear {
-            stopListeningToMessages()
-            
-            Task {
-                // Clear active chat when user leaves
-                await chatManager.clearActiveChat()
-                
-                // Reset unread count when user exits chat (covers all edge cases)
-                await chatManager.resetUnreadCount(for: chatRoom.requestId)
-            }
+            viewModel.onDisappear()
         }
     }
     
@@ -91,7 +73,7 @@ struct ChatConversationView: View {
             Spacer()
             
             // Other User Info
-            if let otherUserId = chatManager.getOtherParticipantId(in: chatRoom) {
+            if let otherUserId = viewModel.otherParticipantId {
                 UserInfoView(userId: otherUserId)
                     .frame(width: 40, height: 40)
             }
@@ -105,12 +87,12 @@ struct ChatConversationView: View {
     
     @ViewBuilder
     private var messagesListView: some View {
-        if isLoading {
+        if viewModel.isLoading {
             Spacer()
             ProgressView("Loading messages...")
                 .foregroundColor(.secondary)
             Spacer()
-        } else if messages.isEmpty {
+        } else if viewModel.messages.isEmpty {
             Spacer()
             VStack(spacing: 8) {
                 Image(systemName: "message")
@@ -132,10 +114,10 @@ struct ChatConversationView: View {
             ScrollViewReader { proxy in
                 ScrollView {
                     LazyVStack(spacing: 8) {
-                        ForEach(messages) { message in
+                        ForEach(viewModel.messages) { message in
                             MessageBubbleView(
                                 message: message,
-                                isCurrentUser: isCurrentUserMessage(message)
+                                isCurrentUser: viewModel.isCurrentUserMessage(message)
                             )
                             .id(message.id)
                         }
@@ -147,9 +129,9 @@ struct ChatConversationView: View {
                     // Dismiss keyboard when tapping on messages
                     UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
                 }
-                .onChange(of: messages.count) { _, _ in
+                .onChange(of: viewModel.messages.count) { _, _ in
                     // Auto-scroll to bottom when new messages arrive
-                    if let lastMessage = messages.last {
+                    if let lastMessage = viewModel.messages.last {
                         withAnimation(.easeInOut(duration: 0.3)) {
                             proxy.scrollTo(lastMessage.id, anchor: .bottom)
                         }
@@ -157,7 +139,7 @@ struct ChatConversationView: View {
                 }
                 .onAppear {
                     // Instantly show latest messages when entering chat
-                    if let lastMessage = messages.last {
+                    if let lastMessage = viewModel.messages.last {
                         proxy.scrollTo(lastMessage.id, anchor: .center)
                     }
                 }
@@ -170,19 +152,19 @@ struct ChatConversationView: View {
     @ViewBuilder
     private var messageInputView: some View {
         HStack(spacing: 12) {
-            if isChatActive {
+            if viewModel.isChatActive {
                 // Text Input
-                TextField("Type a message...", text: $messageText, axis: .vertical)
+                TextField("Type a message...", text: $viewModel.messageText, axis: .vertical)
                     .textFieldStyle(.roundedBorder)
                     .lineLimit(1...4)
                 
                 // Send Button
-                Button(action: sendMessage) {
+                Button(action: viewModel.sendMessage) {
                     Image(systemName: "arrow.up.circle.fill")
                         .font(.title2)
-                        .foregroundColor(canSendMessage ? .blue : .gray)
+                        .foregroundColor(viewModel.canSendMessage ? .blue : .gray)
                 }
-                .disabled(!canSendMessage)
+                .disabled(!viewModel.canSendMessage)
             } else {
                 // Disabled input for closed chats
                 HStack {
@@ -201,51 +183,7 @@ struct ChatConversationView: View {
         .padding(.vertical, 12)
         .background(Color(.systemBackground))
     }
-    
-    // MARK: - Helper Properties
-    
-    private var canSendMessage: Bool {
-        isChatActive && !messageText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-    }
-    
-    private func isCurrentUserMessage(_ message: ChatMessage) -> Bool {
-        guard let currentUserId = Auth.auth().currentUser?.uid else { return false }
-        return message.senderId == currentUserId
-    }
-    
-    // MARK: - Actions
-    
-    private func sendMessage() {
-        guard canSendMessage else { return }
-        
-        let content = messageText.trimmingCharacters(in: .whitespacesAndNewlines)
-        messageText = "" // Clear input immediately
-        
-        Task {
-            await chatManager.sendUserMessage(content: content, to: chatRoom.requestId)
-        }
-    }
-    
-    private func startListeningToMessages() {
-        chatManager.startListeningToMessages(in: chatRoom.requestId) { updatedMessages in
-            withAnimation(.easeInOut(duration: 0.2)) {
-                messages = updatedMessages
-                isLoading = false
-            }
-        }
-        
-        // Also listen for chat room status changes
-        chatManager.startListeningToChatRoomStatus(in: chatRoom.requestId) { isActive in
-            withAnimation(.easeInOut(duration: 0.2)) {
-                isChatActive = isActive
-            }
-        }
-    }
-    
-    private func stopListeningToMessages() {
-        chatManager.stopListeningToMessages(in: chatRoom.requestId)
-        chatManager.stopListeningToChatRoomStatus(in: chatRoom.requestId)
-    }
+
 }
 
 // MARK: - Message Bubble View
@@ -254,10 +192,13 @@ struct MessageBubbleView: View {
     let message: ChatMessage
     let isCurrentUser: Bool
     
-    @State private var proposalStatus: ProposalStatus? = nil
+    @State private var viewModel: MessageBubbleViewModel
     
-    private let chatManager = ChatManager.shared
-    private let userManager = UserManager.shared
+    init(message: ChatMessage, isCurrentUser: Bool) {
+        self.message = message
+        self.isCurrentUser = isCurrentUser
+        self._viewModel = State(initialValue: MessageBubbleViewModel(message: message))
+    }
     
     var body: some View {
         if message.messageType.isSystemMessage {
@@ -278,21 +219,13 @@ struct MessageBubbleView: View {
                     ChangeProposalCardView(
                         message: message,
                         isCurrentUser: isCurrentUser,
-                        proposalStatus: proposalStatus
-                    ) { proposalId, isAccept in
-                        handleProposalAction(proposalId: proposalId, isAccept: isAccept)
-                    }
+                        viewModel: viewModel
+                    )
                     .onAppear {
-                        // Start listening to proposal status when view appears
-                        if let proposalId = message.proposalId {
-                            startListeningToProposalStatus(proposalId: proposalId)
-                        }
+                        viewModel.onAppear()
                     }
                     .onDisappear {
-                        // Clean up listener when view disappears
-                        if let proposalId = message.proposalId {
-                            chatManager.stopListeningToProposalStatus(proposalId: proposalId)
-                        }
+                        viewModel.onDisappear()
                     }
                     
                     // Timestamp for proposal messages
@@ -343,25 +276,7 @@ struct MessageBubbleView: View {
                 .multilineTextAlignment(.center)
         }
     }
-    
-    private func startListeningToProposalStatus(proposalId: String) {
-        chatManager.startListeningToProposalStatus(proposalId: proposalId) { status in
-            proposalStatus = status
-        }
-    }
-    
-    private func handleProposalAction(proposalId: String, isAccept: Bool) {
-        let currentUserId = userManager.userID
-        
-        Task {
-            if isAccept {
-                await chatManager.acceptProposal(proposalId: proposalId, responderId: currentUserId)
-            } else {
-                await chatManager.declineProposal(proposalId: proposalId, responderId: currentUserId)
-            }
-            // No need to manually refresh - the listener will handle it!
-        }
-    }
+
     
     @ViewBuilder
     private var userMessageView: some View {
@@ -380,8 +295,7 @@ struct MessageBubbleView: View {
 struct ChangeProposalCardView: View {
     let message: ChatMessage
     let isCurrentUser: Bool
-    let proposalStatus: ProposalStatus?
-    let onAction: (String, Bool) -> Void
+    let viewModel: MessageBubbleViewModel
     
     var body: some View {
         VStack(spacing: 0) {
@@ -397,7 +311,7 @@ struct ChangeProposalCardView: View {
                 
                 Spacer()
                 
-                if let status = proposalStatus {
+                if let status = viewModel.proposalStatus {
                     StatusBadge(status: status)
                 }
             }
@@ -422,7 +336,7 @@ struct ChangeProposalCardView: View {
             // Action buttons (only show for recipient if proposal is still pending)
             if let proposalId = message.proposalId,
                !isCurrentUser, // Hide buttons for proposer
-               proposalStatus == .pending {
+               viewModel.proposalStatus == .pending {
                 
                 Divider()
                     .padding(.horizontal, 16)
@@ -430,7 +344,7 @@ struct ChangeProposalCardView: View {
                 HStack(spacing: 12) {
                     // Decline button
                     Button(action: {
-                        onAction(proposalId, false)
+                        viewModel.handleProposalAction(proposalId: proposalId, isAccept: false)
                     }) {
                         Text("Decline")
                             .font(.subheadline)
@@ -444,7 +358,7 @@ struct ChangeProposalCardView: View {
                     
                     // Accept button
                     Button(action: {
-                        onAction(proposalId, true)
+                        viewModel.handleProposalAction(proposalId: proposalId, isAccept: true)
                     }) {
                         Text("Accept")
                             .font(.subheadline)
@@ -457,7 +371,7 @@ struct ChangeProposalCardView: View {
                     }
                 }
                 .padding(.horizontal, 16)
-                .padding(.bottom, 16)
+                .padding(.vertical, 16)
             } else {
                 // Add some bottom padding if no buttons are shown
                 Spacer()
