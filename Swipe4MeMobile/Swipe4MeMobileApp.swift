@@ -67,7 +67,7 @@ extension AppDelegate: UNUserNotificationCenterDelegate {
         
         // Handle notification tap
         if let notificationType = userInfo["type"] as? String,
-           notificationType == "chat_message",
+           shouldOpenChat(for: notificationType),
            let chatRoomId = userInfo["chatRoomId"] as? String {
             
             // Post notification to SwiftUI views
@@ -79,6 +79,10 @@ extension AppDelegate: UNUserNotificationCenterDelegate {
         }
         
         completionHandler()
+    }
+
+    private func shouldOpenChat(for notificationType: String) -> Bool {
+        return notificationType == "chat_message" || notificationType == "change_proposal"
     }
 }
 
