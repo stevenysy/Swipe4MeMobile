@@ -375,10 +375,12 @@ exports.sendChatMessageNotification = onDocumentCreated(
 
     console.log(`New message in chat room ${chatRoomId}: ${messageId}`);
 
-    // Send notifications for user messages and change proposals (skip system messages)
+    // Send notifications for user messages, change proposals, and proposal responses (skip system messages)
     if (
       messageData.messageType !== "userMessage" &&
-      messageData.messageType !== "changeProposal"
+      messageData.messageType !== "changeProposal" &&
+      messageData.messageType !== "proposalAccepted" &&
+      messageData.messageType !== "proposalDeclined"
     ) {
       console.log(
         `Skipping notification for message type: ${messageData.messageType}`
@@ -475,6 +477,14 @@ exports.sendChatMessageNotification = onDocumentCreated(
         notificationTitle = `${senderName} sent a change proposal${locationContext}`;
         notificationBody = "Tap to view and respond to the proposed changes";
         notificationType = "change_proposal";
+      } else if (messageData.messageType === "proposalAccepted") {
+        notificationTitle = `${senderName} accepted your proposal${locationContext}`;
+        notificationBody = "Your proposed changes have been accepted";
+        notificationType = "proposal_accepted";
+      } else if (messageData.messageType === "proposalDeclined") {
+        notificationTitle = `${senderName} declined your proposal${locationContext}`;
+        notificationBody = "Your proposed changes were declined";
+        notificationType = "proposal_declined";
       }
 
       // Send the notification

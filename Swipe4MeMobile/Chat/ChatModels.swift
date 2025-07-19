@@ -167,6 +167,8 @@ extension ChatMessage {
         case userMessage = "userMessage"
         case systemNotification = "systemNotification"
         case changeProposal = "changeProposal"
+        case proposalAccepted = "proposalAccepted"
+        case proposalDeclined = "proposalDeclined"
         
         var displayName: String {
             switch self {
@@ -176,6 +178,10 @@ extension ChatMessage {
                 return "System Notification"
             case .changeProposal:
                 return "Change Proposal"
+            case .proposalAccepted:
+                return "Proposal Accepted"
+            case .proposalDeclined:
+                return "Proposal Declined"
             }
         }
         
@@ -187,11 +193,21 @@ extension ChatMessage {
             return self == .changeProposal
         }
         
+        /// Determines if this message should be displayed as a system message (centered, no bubble)
+        var shouldDisplayAsSystemMessage: Bool {
+            switch self {
+            case .systemNotification, .proposalAccepted, .proposalDeclined:
+                return true
+            case .userMessage, .changeProposal:
+                return false
+            }
+        }
+        
         /// Determines if this message type should increment unread counts for recipients
         var shouldIncrementUnreadCount: Bool {
             switch self {
-            case .userMessage, .changeProposal:
-                return true // User-generated content that requires attention
+            case .userMessage, .changeProposal, .proposalAccepted, .proposalDeclined:
+                return true // User-generated content or important responses that require attention
             case .systemNotification:
                 return false // Informational only, don't increment unread
             }
@@ -289,19 +305,23 @@ extension ChatMessage {
         )
     }
     
-    /// Creates system message for proposal acceptance
-    static func proposalAccepted(chatRoomId: String, acceptedBy: String, changesDescription: String) -> ChatMessage {
-        return createSystemMessage(
+    /// Creates message for proposal acceptance (should trigger notifications)
+    static func proposalAccepted(chatRoomId: String, responderId: String, acceptedBy: String, changesDescription: String) -> ChatMessage {
+        return ChatMessage(
             chatRoomId: chatRoomId,
-            content: "\(acceptedBy) accepted the proposed changes:\n\(changesDescription)"
+            senderId: responderId,
+            content: "\(acceptedBy) accepted the proposed changes:\n\(changesDescription)",
+            messageType: .proposalAccepted
         )
     }
     
-    /// Creates system message for proposal decline
-    static func proposalDeclined(chatRoomId: String, declinedBy: String) -> ChatMessage {
-        return createSystemMessage(
+    /// Creates message for proposal decline (should trigger notifications)
+    static func proposalDeclined(chatRoomId: String, responderId: String, declinedBy: String) -> ChatMessage {
+        return ChatMessage(
             chatRoomId: chatRoomId,
-            content: "\(declinedBy) declined the proposed changes"
+            senderId: responderId,
+            content: "\(declinedBy) declined the proposed changes",
+            messageType: .proposalDeclined
         )
     }
 }
