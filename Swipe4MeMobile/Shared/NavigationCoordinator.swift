@@ -18,7 +18,9 @@ final class NavigationCoordinator {
             queue: .main
         ) { [weak self] notification in
             if let chatRoomId = notification.userInfo?["chatRoomId"] as? String {
-                self?.handleChatNavigation(chatRoomId: chatRoomId)
+                Task { @MainActor in
+                    self?.handleChatNavigation(chatRoomId: chatRoomId)
+                }
             }
         }
     }

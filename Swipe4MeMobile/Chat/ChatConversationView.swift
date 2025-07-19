@@ -201,7 +201,7 @@ struct MessageBubbleView: View {
     }
     
     var body: some View {
-        if message.messageType.isSystemMessage {
+        if message.messageType.shouldDisplayAsSystemMessage {
             // System messages centered with no spacing constraints
             HStack {
                 Spacer()

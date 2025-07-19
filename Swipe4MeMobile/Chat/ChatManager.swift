@@ -209,6 +209,7 @@ final class ChatManager {
             let changesDescription = proposal.getChangesDescription(comparedTo: originalRequest)
             let acceptMessage = ChatMessage.proposalAccepted(
                 chatRoomId: proposal.requestId,
+                responderId: responderId,
                 acceptedBy: responderName,
                 changesDescription: changesDescription
             )
@@ -244,6 +245,7 @@ final class ChatManager {
             let responderName = await getUserName(userId: responderId)
             let declineMessage = ChatMessage.proposalDeclined(
                 chatRoomId: proposal.requestId,
+                responderId: responderId,
                 declinedBy: responderName
             )
             await sendMessage(declineMessage)
