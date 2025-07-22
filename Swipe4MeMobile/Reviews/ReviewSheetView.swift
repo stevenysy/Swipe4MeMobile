@@ -9,10 +9,11 @@ import SwiftUI
 
 struct ReviewSheetView: View {
     let request: SwipeRequest
-    let swiperName: String
     
     @State private var selectedRating: Int = 0
     @State private var isSubmitting = false
+    @State private var revieweeName: String = "the other person"
+    @State private var isLoadingName = true
     @Environment(\.dismiss) private var dismiss
     
     private let reviewManager = ReviewManager.shared
@@ -29,10 +30,17 @@ struct ReviewSheetView: View {
                         .font(.title2)
                         .fontWeight(.semibold)
                     
-                    Text("How was your swipe experience with \(swiperName)?")
-                        .font(.body)
-                        .foregroundColor(.secondary)
-                        .multilineTextAlignment(.center)
+                    if isLoadingName {
+                        Text("How was your swipe experience?")
+                            .font(.body)
+                            .foregroundColor(.secondary)
+                            .multilineTextAlignment(.center)
+                    } else {
+                        Text("How was your swipe experience with \(revieweeName)?")
+                            .font(.body)
+                            .foregroundColor(.secondary)
+                            .multilineTextAlignment(.center)
+                    }
                 }
                 .padding(.horizontal)
                 
@@ -89,6 +97,9 @@ struct ReviewSheetView: View {
         }
         .presentationDetents([.medium])
         .presentationDragIndicator(.visible)
+        .onAppear {
+            fetchRevieweeName()
+        }
     }
     
     private var ratingDescription: String {
@@ -126,11 +137,34 @@ struct ReviewSheetView: View {
             }
         }
     }
+    
+    private func fetchRevieweeName() {
+        let currentUserId = UserManager.shared.userID
+        
+        // Determine who is being reviewed based on current user's role
+        let revieweeId: String
+        if currentUserId == request.requesterId {
+            // Current user is the requester, so they're reviewing the swiper
+            revieweeId = request.swiperId
+        } else {
+            // Current user is the swiper, so they're reviewing the requester
+            revieweeId = request.requesterId
+        }
+        
+        Task {
+            if let user = await UserManager.shared.getUser(userId: revieweeId) {
+                revieweeName = "\(user.firstName) \(user.lastName)"
+                isLoadingName = false
+            } else {
+                revieweeName = "the other person"
+                isLoadingName = false
+            }
+        }
+    }
 }
 
 #Preview {
     ReviewSheetView(
-        request: SwipeRequest.mockRequests.first!,
-        swiperName: "John Smith"
+        request: SwipeRequest.mockRequests.first!
     )
 } 
