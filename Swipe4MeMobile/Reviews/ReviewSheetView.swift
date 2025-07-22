@@ -87,13 +87,6 @@ struct ReviewSheetView: View {
             }
             .navigationTitle("")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Close") {
-                        dismiss()
-                    }
-                }
-            }
         }
         .presentationDetents([.medium])
         .presentationDragIndicator(.visible)

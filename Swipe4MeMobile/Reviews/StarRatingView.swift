@@ -12,13 +12,13 @@ struct StarRatingView: View {
     let maxRating: Int = 5
     
     var body: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: 12) {
             ForEach(1...maxRating, id: \.self) { index in
                 Button(action: {
                     rating = index
                 }) {
                     Image(systemName: index <= rating ? "star.fill" : "star")
-                        .font(.title2)
+                        .font(.largeTitle)
                         .foregroundColor(index <= rating ? .yellow : .gray)
                 }
                 .buttonStyle(PlainButtonStyle())
