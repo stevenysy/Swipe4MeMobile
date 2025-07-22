@@ -16,4 +16,9 @@ struct SFMUser: Codable, Identifiable {
     var fcmToken: String?
     var lastTokenUpdate: Timestamp?
     var activeChat: String?  // ID of chat room user is currently viewing
+    
+    // Rating fields
+    var averageRating: Double?
+    var totalReviews: Int = 0
+    var ratingSum: Int = 0
 }
