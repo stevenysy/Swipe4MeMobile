@@ -156,20 +156,52 @@ final class SwipeRequestManager {
     
     // MARK: - Cloud Task Scheduling
     
-    func scheduleCloudTaskForRequest(requestId: String, meetingTime: Timestamp) {
-        Task {
-            do {
-                try await callScheduleTaskFunction(requestId: requestId, meetingTime: meetingTime)
-                print("Successfully scheduled cloud task for request \(requestId)")
-            } catch {
-                print("Failed to schedule cloud task: \(error)")
-                // Note: We don't update errorMessage as this is a background operation
-                // The main request operation has already succeeded
+    func scheduleCloudTaskForRequest(requestId: String, meetingTime: Timestamp) async -> CloudTaskNames? {
+        do {
+            let result = try await callScheduleTaskFunction(requestId: requestId, meetingTime: meetingTime)
+            
+            // Extract task names from result
+            if let data = result.data as? [String: Any],
+               let reminderTaskName = data["reminderTaskName"] as? String,
+               let statusUpdateTaskName = data["statusUpdateTaskName"] as? String {
+                
+                let taskNames = CloudTaskNames(
+                    reminderTaskName: reminderTaskName,
+                    statusUpdateTaskName: statusUpdateTaskName
+                )
+                
+                // Update the request with task names
+                do {
+                    try await updateRequestWithTaskNames(requestId: requestId, taskNames: taskNames)
+                    print("Successfully stored task names for request \(requestId)")
+                    return taskNames
+                } catch {
+                    print("Failed to store task names: \(error)")
+                    // Still return task names even if storage failed
+                    return taskNames
+                }
+            } else {
+                print("Failed to extract task names from Cloud Function response")
+                return nil
             }
+        } catch {
+            print("Failed to schedule cloud task: \(error)")
+            return nil
         }
     }
     
-    private func callScheduleTaskFunction(requestId: String, meetingTime: Timestamp) async throws {
+    private func updateRequestWithTaskNames(requestId: String, taskNames: CloudTaskNames) async throws {
+        let updateData: [String: Any] = [
+            "cloudTaskNames": [
+                "reminderTaskName": taskNames.reminderTaskName ?? "",
+                "statusUpdateTaskName": taskNames.statusUpdateTaskName ?? ""
+            ]
+        ]
+        
+        try await db.collection("swipeRequests").document(requestId).updateData(updateData)
+    }
+    
+    private func callScheduleTaskFunction(requestId: String, meetingTime: Timestamp) async throws -> HTTPSCallableResult {
         // Use Firebase Functions SDK - much cleaner!
         let functions = Functions.functions()
         let scheduleFunction = functions.httpsCallable("scheduleRequestStatusUpdate")
@@ -189,6 +221,7 @@ final class SwipeRequestManager {
         do {
             let result = try await scheduleFunction.call(data)
             print("Task scheduled successfully: \(result.data)")
+            return result
         } catch {
             let nsError = error as NSError
             throw CloudTaskError.apiError(

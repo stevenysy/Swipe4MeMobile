@@ -79,7 +79,12 @@ struct OpenRequestCardView: View {
                 await ChatManager.shared.updateChatRoomSwiper(requestId: requestId, newSwiperId: userId)
                 
                 // Schedule cloud task to trigger at meeting time
-                SwipeRequestManager.shared.scheduleCloudTaskForRequest(requestId: requestId, meetingTime: updatedRequest.meetingTime)
+                let taskNames = await SwipeRequestManager.shared.scheduleCloudTaskForRequest(requestId: requestId, meetingTime: updatedRequest.meetingTime)
+                if taskNames != nil {
+                    print("Cloud tasks scheduled successfully for request \(requestId)")
+                } else {
+                    print("Failed to schedule cloud tasks for request \(requestId)")
+                }
             }
             
             SnackbarManager.shared.show(title: "Request accepted", style: .success)
