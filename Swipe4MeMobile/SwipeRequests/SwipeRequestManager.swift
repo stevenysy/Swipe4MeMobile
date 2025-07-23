@@ -156,20 +156,128 @@ final class SwipeRequestManager {
     
     // MARK: - Cloud Task Scheduling
     
-    func scheduleCloudTaskForRequest(requestId: String, meetingTime: Timestamp) {
-        Task {
-            do {
-                try await callScheduleTaskFunction(requestId: requestId, meetingTime: meetingTime)
-                print("Successfully scheduled cloud task for request \(requestId)")
-            } catch {
-                print("Failed to schedule cloud task: \(error)")
-                // Note: We don't update errorMessage as this is a background operation
-                // The main request operation has already succeeded
+    func scheduleCloudTaskForRequest(requestId: String, meetingTime: Timestamp) async -> CloudTaskNames? {
+        do {
+            let result = try await callScheduleTaskFunction(requestId: requestId, meetingTime: meetingTime)
+            
+            // Extract task names from result
+            if let data = result.data as? [String: Any],
+               let reminderTaskName = data["reminderTaskName"] as? String,
+               let statusUpdateTaskName = data["statusUpdateTaskName"] as? String {
+                
+                let taskNames = CloudTaskNames(
+                    reminderTaskName: reminderTaskName,
+                    statusUpdateTaskName: statusUpdateTaskName
+                )
+                
+                // Update the request with task names
+                do {
+                    try await updateRequestWithTaskNames(requestId: requestId, taskNames: taskNames)
+                    print("Successfully stored task names for request \(requestId)")
+                    return taskNames
+                } catch {
+                    print("Failed to store task names: \(error)")
+                    // Still return task names even if storage failed
+                    return taskNames
+                }
+            } else {
+                print("Failed to extract task names from Cloud Function response")
+                return nil
             }
+        } catch {
+            print("Failed to schedule cloud task: \(error)")
+            return nil
         }
     }
     
-    private func callScheduleTaskFunction(requestId: String, meetingTime: Timestamp) async throws {
+    private func updateRequestWithTaskNames(requestId: String, taskNames: CloudTaskNames) async throws {
+        let updateData: [String: Any] = [
+            "cloudTaskNames": [
+                "reminderTaskName": taskNames.reminderTaskName ?? "",
+                "statusUpdateTaskName": taskNames.statusUpdateTaskName ?? ""
+            ]
+        ]
+        
+        try await db.collection("swipeRequests").document(requestId).updateData(updateData)
+    }
+    
+    // MARK: - Cloud Task Cancellation
+    
+    func cancelRequestTasks(for request: SwipeRequest) async -> Bool {
+        guard let taskNames = request.cloudTaskNames else {
+            print("No cloud tasks to cancel for request \(request.id ?? "unknown")")
+            return true // Consider it successful if there are no tasks to cancel
+        }
+        
+        // Extract task names into array, filtering out empty strings
+        let validTaskNames = [
+            taskNames.reminderTaskName,
+            taskNames.statusUpdateTaskName
+        ].compactMap { $0 }.filter { !$0.isEmpty }
+        
+        guard !validTaskNames.isEmpty else {
+            print("No valid task names to cancel for request \(request.id ?? "unknown")")
+            return true // Consider it successful if there's nothing to cancel
+        }
+        
+        print("Cancelling \(validTaskNames.count) tasks for request \(request.id ?? "unknown")")
+        
+        do {
+            let result = try await callCancelTasksFunction(taskNames: validTaskNames)
+            
+            // Check if cancellation was successful
+            if let data = result.data as? [String: Any],
+               let success = data["success"] as? Bool {
+                
+                if success {
+                    print("Successfully cancelled \(validTaskNames.count) tasks for request \(request.id ?? "unknown")")
+                    
+                    // Log detailed results if available
+                    if let summary = data["summary"] as? [String: Any],
+                       let cancelled = summary["cancelled"] as? Int,
+                       let notFound = summary["notFound"] as? Int,
+                       let errors = summary["errors"] as? Int {
+                        print("Cancellation summary: \(cancelled) cancelled, \(notFound) not found, \(errors) errors")
+                    }
+                    
+                    return true
+                } else {
+                    print("Cloud Function reported failure for task cancellation")
+                    return false
+                }
+            } else {
+                print("Invalid response format from cancelCloudTasks function")
+                return false
+            }
+        } catch {
+            print("Failed to cancel cloud tasks for request \(request.id ?? "unknown"): \(error)")
+            return false
+        }
+    }
+    
+    private func callCancelTasksFunction(taskNames: [String]) async throws -> HTTPSCallableResult {
+        let functions = Functions.functions()
+        let cancelFunction = functions.httpsCallable("cancelCloudTasks")
+        
+        // Call the function with task names array
+        let data: [String: Any] = [
+            "taskNames": taskNames
+        ]
+        
+        do {
+            let result = try await cancelFunction.call(data)
+            print("Cancel tasks function called successfully")
+            return result
+        } catch {
+            let nsError = error as NSError
+            throw CloudTaskError.apiError(
+                statusCode: nsError.code,
+                message: nsError.localizedDescription
+            )
+        }
+    }
+    
+    private func callScheduleTaskFunction(requestId: String, meetingTime: Timestamp) async throws -> HTTPSCallableResult {
         // Use Firebase Functions SDK - much cleaner!
         let functions = Functions.functions()
         let scheduleFunction = functions.httpsCallable("scheduleRequestStatusUpdate")
@@ -189,6 +297,7 @@ final class SwipeRequestManager {
         do {
             let result = try await scheduleFunction.call(data)
             print("Task scheduled successfully: \(result.data)")
+            return result
         } catch {
             let nsError = error as NSError
             throw CloudTaskError.apiError(
@@ -199,6 +308,65 @@ final class SwipeRequestManager {
     }
     
     // MARK: - Change Proposals
+    
+    /// Reschedules Cloud Tasks when a request's meeting time changes
+    /// - Parameters:
+    ///   - originalRequest: The request with the old meeting time and existing tasks
+    ///   - updatedRequest: The request with the new meeting time
+    func rescheduleCloudTasks(from originalRequest: SwipeRequest, to updatedRequest: SwipeRequest) async {
+        print("Meeting time changed for scheduled request \(originalRequest.id ?? "unknown"), rescheduling Cloud Tasks...")
+        
+        // Cancel existing tasks before updating the request
+        let tasksCancelled = await cancelRequestTasks(for: originalRequest)
+        
+        if tasksCancelled {
+            print("Successfully cancelled existing tasks for request \(originalRequest.id ?? "unknown")")
+            
+            // Update the request in database first (without task names, they'll be updated when scheduling)
+            var requestToUpdate = updatedRequest
+            requestToUpdate.cloudTaskNames = nil // Clear old task names
+            
+            guard let requestId = requestToUpdate.id else {
+                errorMessage = "Invalid request ID for rescheduling tasks"
+                return
+            }
+            
+            do {
+                try db.collection("swipeRequests").document(requestId).setData(from: requestToUpdate)
+                
+                // Schedule new tasks with the updated meeting time
+                let newTaskNames = await scheduleCloudTaskForRequest(
+                    requestId: requestId, 
+                    meetingTime: requestToUpdate.meetingTime
+                )
+                
+                if newTaskNames != nil {
+                    print("Successfully rescheduled Cloud Tasks for request \(requestId)")
+                } else {
+                    print("Failed to reschedule Cloud Tasks for request \(requestId)")
+                }
+            } catch {
+                errorMessage = "Failed to update request during task rescheduling: \(error.localizedDescription)"
+                print("Error updating request during rescheduling: \(error)")
+            }
+            
+        } else {
+            print("Failed to cancel existing tasks for request \(originalRequest.id ?? "unknown"), proceeding with request update anyway")
+            
+            // Still update the request even if task cancellation failed
+            guard let requestId = updatedRequest.id else {
+                errorMessage = "Invalid request ID for applying changes"
+                return
+            }
+            
+            do {
+                try db.collection("swipeRequests").document(requestId).setData(from: updatedRequest)
+            } catch {
+                errorMessage = "Failed to update request: \(error.localizedDescription)"
+                print("Error updating request: \(error)")
+            }
+        }
+    }
     
     /// Creates a change proposal and returns the proposal ID
     func createChangeProposal(

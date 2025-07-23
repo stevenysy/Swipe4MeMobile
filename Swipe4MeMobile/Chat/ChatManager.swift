@@ -263,6 +263,8 @@ final class ChatManager {
     private func applyProposalChanges(proposal: ChangeProposal, to originalRequest: SwipeRequest) async {
         do {
             var updatedRequest = originalRequest
+            let meetingTimeChanged = proposal.proposedMeetingTime != nil && 
+                                   proposal.proposedMeetingTime != originalRequest.meetingTime
             
             // Apply location change if proposed
             if let proposedLocation = proposal.proposedLocation {
@@ -274,14 +276,20 @@ final class ChatManager {
                 updatedRequest.meetingTime = proposedMeetingTime
             }
             
-            // Update the request in database
-            guard let requestId = updatedRequest.id else {
-                errorMessage = "Invalid request ID for applying changes"
-                return
+            // Handle Cloud Task rescheduling if meeting time changed for scheduled requests
+            if meetingTimeChanged && originalRequest.status == .scheduled {
+                await SwipeRequestManager.shared.rescheduleCloudTasks(from: originalRequest, to: updatedRequest)
+            } else {
+                // No meeting time change or not a scheduled request - simple update
+                guard let requestId = updatedRequest.id else {
+                    errorMessage = "Invalid request ID for applying changes"
+                    return
+                }
+                
+                try db.collection("swipeRequests").document(requestId).setData(from: updatedRequest)
             }
             
-            try db.collection("swipeRequests").document(requestId).setData(from: updatedRequest)
-            print("Applied proposal changes to request: \(requestId)")
+            print("Applied proposal changes to request: \(updatedRequest.id ?? "unknown")")
             
         } catch {
             errorMessage = "Failed to apply proposal changes: \(error.localizedDescription)"

@@ -15,6 +15,7 @@ struct SwipeRequest: Codable, Identifiable, Equatable, Hashable {
     var location: DiningLocation
     var meetingTime: Timestamp
     var status: RequestStatus
+    var cloudTaskNames: CloudTaskNames?
 
     let createdAt: Timestamp
 
@@ -27,6 +28,7 @@ struct SwipeRequest: Codable, Identifiable, Equatable, Hashable {
         self.location = location
         self.meetingTime = meetingTime
         self.status = status
+        self.cloudTaskNames = nil
         self.createdAt = Timestamp()
     }
 }
@@ -191,4 +193,16 @@ enum DiningLocation: String, CaseIterable, Identifiable, Codable {
     case kissamMunchie = "Kissam Munchie"
 
     var id: String { self.rawValue }
+}
+
+// MARK: - Cloud Task Names
+
+struct CloudTaskNames: Codable, Equatable, Hashable {
+    let reminderTaskName: String?
+    let statusUpdateTaskName: String?
+    
+    init(reminderTaskName: String?, statusUpdateTaskName: String?) {
+        self.reminderTaskName = reminderTaskName
+        self.statusUpdateTaskName = statusUpdateTaskName
+    }
 }
