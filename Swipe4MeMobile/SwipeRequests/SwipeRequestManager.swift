@@ -309,6 +309,65 @@ final class SwipeRequestManager {
     
     // MARK: - Change Proposals
     
+    /// Reschedules Cloud Tasks when a request's meeting time changes
+    /// - Parameters:
+    ///   - originalRequest: The request with the old meeting time and existing tasks
+    ///   - updatedRequest: The request with the new meeting time
+    func rescheduleCloudTasks(from originalRequest: SwipeRequest, to updatedRequest: SwipeRequest) async {
+        print("Meeting time changed for scheduled request \(originalRequest.id ?? "unknown"), rescheduling Cloud Tasks...")
+        
+        // Cancel existing tasks before updating the request
+        let tasksCancelled = await cancelRequestTasks(for: originalRequest)
+        
+        if tasksCancelled {
+            print("Successfully cancelled existing tasks for request \(originalRequest.id ?? "unknown")")
+            
+            // Update the request in database first (without task names, they'll be updated when scheduling)
+            var requestToUpdate = updatedRequest
+            requestToUpdate.cloudTaskNames = nil // Clear old task names
+            
+            guard let requestId = requestToUpdate.id else {
+                errorMessage = "Invalid request ID for rescheduling tasks"
+                return
+            }
+            
+            do {
+                try db.collection("swipeRequests").document(requestId).setData(from: requestToUpdate)
+                
+                // Schedule new tasks with the updated meeting time
+                let newTaskNames = await scheduleCloudTaskForRequest(
+                    requestId: requestId, 
+                    meetingTime: requestToUpdate.meetingTime
+                )
+                
+                if newTaskNames != nil {
+                    print("Successfully rescheduled Cloud Tasks for request \(requestId)")
+                } else {
+                    print("Failed to reschedule Cloud Tasks for request \(requestId)")
+                }
+            } catch {
+                errorMessage = "Failed to update request during task rescheduling: \(error.localizedDescription)"
+                print("Error updating request during rescheduling: \(error)")
+            }
+            
+        } else {
+            print("Failed to cancel existing tasks for request \(originalRequest.id ?? "unknown"), proceeding with request update anyway")
+            
+            // Still update the request even if task cancellation failed
+            guard let requestId = updatedRequest.id else {
+                errorMessage = "Invalid request ID for applying changes"
+                return
+            }
+            
+            do {
+                try db.collection("swipeRequests").document(requestId).setData(from: updatedRequest)
+            } catch {
+                errorMessage = "Failed to update request: \(error.localizedDescription)"
+                print("Error updating request: \(error)")
+            }
+        }
+    }
+    
     /// Creates a change proposal and returns the proposal ID
     func createChangeProposal(
         for request: SwipeRequest,
