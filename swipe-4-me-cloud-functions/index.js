@@ -106,14 +106,6 @@ exports.updateRequestStatusToInProgress = functions.https.onRequest(
  * Called when a request needs to be rescheduled
  */
 exports.cancelCloudTasks = functions.https.onCall(async (data, context) => {
-  // Authentication is automatically handled by Firebase
-  if (!context.auth) {
-    throw new functions.https.HttpsError(
-      "unauthenticated",
-      "User must be authenticated to cancel tasks"
-    );
-  }
-
   const { taskNames } = data.data;
 
   if (!taskNames || !Array.isArray(taskNames) || taskNames.length === 0) {
