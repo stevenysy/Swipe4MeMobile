@@ -288,13 +288,13 @@ exports.scheduleRequestStatusUpdate = functions.https.onCall(
         client.createTask({ parent, task: statusTask }),
       ]);
 
-      console.log(`Created reminder task ${reminderResponse.name}`);
-      console.log(`Created status update task ${statusResponse.name}`);
+      console.log(`Created reminder task ${reminderResponse[0].name}`);
+      console.log(`Created status update task ${statusResponse[0].name}`);
 
       return {
         success: true,
-        reminderTaskName: reminderResponse.name,
-        statusTaskName: statusResponse.name,
+        reminderTaskName: reminderResponse[0].name,
+        statusUpdateTaskName: statusResponse[0].name,
         message: "Tasks scheduled successfully",
       };
     } catch (error) {
