@@ -102,6 +102,104 @@ exports.updateRequestStatusToInProgress = functions.https.onRequest(
 );
 
 /**
+ * Cancels Cloud Tasks by their full task names
+ * Called when a request needs to be rescheduled
+ */
+exports.cancelCloudTasks = functions.https.onCall(async (data, context) => {
+  // Authentication is automatically handled by Firebase
+  if (!context.auth) {
+    throw new functions.https.HttpsError(
+      "unauthenticated",
+      "User must be authenticated to cancel tasks"
+    );
+  }
+
+  const { taskNames } = data.data;
+
+  if (!taskNames || !Array.isArray(taskNames) || taskNames.length === 0) {
+    throw new functions.https.HttpsError(
+      "invalid-argument",
+      "taskNames array is required and must not be empty"
+    );
+  }
+
+  try {
+    console.log(`Cancelling ${taskNames.length} tasks:`, taskNames);
+
+    // Initialize Cloud Tasks client
+    const client = new CloudTasksClient();
+
+    const results = [];
+
+    // Cancel each task
+    for (const taskName of taskNames) {
+      if (!taskName || typeof taskName !== "string") {
+        results.push({
+          taskName: taskName || "undefined",
+          status: "skipped",
+          reason: "Invalid task name",
+        });
+        continue;
+      }
+
+      try {
+        await client.deleteTask({ name: taskName });
+        console.log(`Successfully cancelled task: ${taskName}`);
+        results.push({
+          taskName,
+          status: "cancelled",
+        });
+      } catch (error) {
+        console.error(`Failed to cancel task ${taskName}:`, error);
+
+        // Check if task was already deleted or doesn't exist
+        if (error.code === 5) {
+          // NOT_FOUND
+          results.push({
+            taskName,
+            status: "not_found",
+            reason: "Task was already deleted or doesn't exist",
+          });
+        } else {
+          results.push({
+            taskName,
+            status: "error",
+            reason: error.message,
+          });
+        }
+      }
+    }
+
+    const successCount = results.filter((r) => r.status === "cancelled").length;
+    const notFoundCount = results.filter(
+      (r) => r.status === "not_found"
+    ).length;
+    const errorCount = results.filter((r) => r.status === "error").length;
+
+    console.log(
+      `Task cancellation summary: ${successCount} cancelled, ${notFoundCount} not found, ${errorCount} errors`
+    );
+
+    return {
+      success: true,
+      results,
+      summary: {
+        total: taskNames.length,
+        cancelled: successCount,
+        notFound: notFoundCount,
+        errors: errorCount,
+      },
+    };
+  } catch (error) {
+    console.error("Error in cancelCloudTasks:", error);
+    throw new functions.https.HttpsError(
+      "internal",
+      `Error cancelling tasks: ${error.message}`
+    );
+  }
+});
+
+/**
  * Schedules Cloud Tasks for reminder notification and status update
  * Called when a request is accepted
  */
