@@ -18,6 +18,8 @@ final class SwipeRequestCardViewModel {
     var requestToCancel: SwipeRequest?
     var requestToMarkSwiped: SwipeRequest?
     var chatDestination: ChatDestination?
+    var showReviewSheet = false
+    var requestToReview: SwipeRequest?
     
     // MARK: - Dependencies
     private let swipeRequestManager = SwipeRequestManager.shared
@@ -101,8 +103,15 @@ final class SwipeRequestCardViewModel {
     
     func confirmSwiped() {
         guard let request = requestToMarkSwiped else { return }
+        
+        // Mark request as swiped (moves to awaitingReview status)
         swipeRequestManager.markRequestAsSwiped(request: request)
-        snackbarManager.show(title: "Marked as Swiped!", style: .success)
+        
+        // Set up review sheet
+        requestToReview = request
+        showReviewSheet = true
+        
+        // Clear the swiped confirmation state
         requestToMarkSwiped = nil
     }
     
@@ -114,6 +123,11 @@ final class SwipeRequestCardViewModel {
         withAnimation(.spring(response: 0.45, dampingFraction: 0.75)) {
             isEditing = false
         }
+    }
+    
+    func dismissReviewSheet() {
+        showReviewSheet = false
+        requestToReview = nil
     }
     
     // MARK: - Change Proposal Methods

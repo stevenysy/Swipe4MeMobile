@@ -103,6 +103,16 @@ struct SwipeRequestCardView: View {
                 )
             }
         }
+        .sheet(isPresented: $viewModel.showReviewSheet) {
+            if let reviewRequest = viewModel.requestToReview {
+                ReviewSheetView(
+                    request: reviewRequest
+                )
+                .onDisappear {
+                    viewModel.dismissReviewSheet()
+                }
+            }
+        }
     }
 
     @ViewBuilder
@@ -208,6 +218,7 @@ struct SwipeRequestCardView: View {
             .frame(maxWidth: .infinity)
         }
     }
+    
 }
 
 #Preview {
