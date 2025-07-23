@@ -201,6 +201,82 @@ final class SwipeRequestManager {
         try await db.collection("swipeRequests").document(requestId).updateData(updateData)
     }
     
+    // MARK: - Cloud Task Cancellation
+    
+    func cancelRequestTasks(for request: SwipeRequest) async -> Bool {
+        guard let taskNames = request.cloudTaskNames else {
+            print("No cloud tasks to cancel for request \(request.id ?? "unknown")")
+            return true // Consider it successful if there are no tasks to cancel
+        }
+        
+        // Extract task names into array, filtering out empty strings
+        let validTaskNames = [
+            taskNames.reminderTaskName,
+            taskNames.statusUpdateTaskName
+        ].compactMap { $0 }.filter { !$0.isEmpty }
+        
+        guard !validTaskNames.isEmpty else {
+            print("No valid task names to cancel for request \(request.id ?? "unknown")")
+            return true // Consider it successful if there's nothing to cancel
+        }
+        
+        print("Cancelling \(validTaskNames.count) tasks for request \(request.id ?? "unknown")")
+        
+        do {
+            let result = try await callCancelTasksFunction(taskNames: validTaskNames)
+            
+            // Check if cancellation was successful
+            if let data = result.data as? [String: Any],
+               let success = data["success"] as? Bool {
+                
+                if success {
+                    print("Successfully cancelled \(validTaskNames.count) tasks for request \(request.id ?? "unknown")")
+                    
+                    // Log detailed results if available
+                    if let summary = data["summary"] as? [String: Any],
+                       let cancelled = summary["cancelled"] as? Int,
+                       let notFound = summary["notFound"] as? Int,
+                       let errors = summary["errors"] as? Int {
+                        print("Cancellation summary: \(cancelled) cancelled, \(notFound) not found, \(errors) errors")
+                    }
+                    
+                    return true
+                } else {
+                    print("Cloud Function reported failure for task cancellation")
+                    return false
+                }
+            } else {
+                print("Invalid response format from cancelCloudTasks function")
+                return false
+            }
+        } catch {
+            print("Failed to cancel cloud tasks for request \(request.id ?? "unknown"): \(error)")
+            return false
+        }
+    }
+    
+    private func callCancelTasksFunction(taskNames: [String]) async throws -> HTTPSCallableResult {
+        let functions = Functions.functions()
+        let cancelFunction = functions.httpsCallable("cancelCloudTasks")
+        
+        // Call the function with task names array
+        let data: [String: Any] = [
+            "taskNames": taskNames
+        ]
+        
+        do {
+            let result = try await cancelFunction.call(data)
+            print("Cancel tasks function called successfully")
+            return result
+        } catch {
+            let nsError = error as NSError
+            throw CloudTaskError.apiError(
+                statusCode: nsError.code,
+                message: nsError.localizedDescription
+            )
+        }
+    }
+    
     private func callScheduleTaskFunction(requestId: String, meetingTime: Timestamp) async throws -> HTTPSCallableResult {
         // Use Firebase Functions SDK - much cleaner!
         let functions = Functions.functions()
