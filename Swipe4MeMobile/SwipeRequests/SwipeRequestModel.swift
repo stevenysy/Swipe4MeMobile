@@ -8,24 +8,6 @@
 import FirebaseFirestore
 import SwiftUI
 
-// MARK: - Review Reminder Models
-
-struct ReviewReminderInfo: Codable, Equatable, Hashable {
-    var needsReminder: Bool = false
-    var reminderShown: Bool = false
-    var reminderCount: Int = 0
-    
-    init(
-        needsReminder: Bool = false,
-        reminderShown: Bool = false,
-        reminderCount: Int = 0
-    ) {
-        self.needsReminder = needsReminder
-        self.reminderShown = reminderShown
-        self.reminderCount = reminderCount
-    }
-}
-
 struct SwipeRequest: Codable, Identifiable, Equatable, Hashable {
     @DocumentID var id: String?
     var requesterId: String
@@ -34,7 +16,6 @@ struct SwipeRequest: Codable, Identifiable, Equatable, Hashable {
     var meetingTime: Timestamp
     var status: RequestStatus
     var cloudTaskNames: CloudTaskNames?
-    var reviewReminders: [String: ReviewReminderInfo] = [:]
 
     let createdAt: Timestamp
 
@@ -48,25 +29,7 @@ struct SwipeRequest: Codable, Identifiable, Equatable, Hashable {
         self.meetingTime = meetingTime
         self.status = status
         self.cloudTaskNames = nil
-        self.reviewReminders = [:]
         self.createdAt = Timestamp()
-    }
-    
-    // MARK: - Review Reminder Helper Methods
-    
-    /// Gets the review reminder info for a specific user
-    /// - Parameter userId: The user ID to get reminder info for
-    /// - Returns: The ReviewReminderInfo if it exists, nil otherwise
-    func getReviewReminder(for userId: String) -> ReviewReminderInfo? {
-        return reviewReminders[userId]
-    }
-    
-    /// Sets the review reminder info for a specific user
-    /// - Parameters:
-    ///   - userId: The user ID to set reminder info for
-    ///   - info: The ReviewReminderInfo to set
-    mutating func setReviewReminder(for userId: String, info: ReviewReminderInfo) {
-        reviewReminders[userId] = info
     }
     
     /// Gets the other user ID in this request (the one that isn't the current user)
