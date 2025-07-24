@@ -67,6 +67,12 @@ struct AppView: View {
                 }
             case .active:
                 print("App became active")
+                // Check for pending review reminders
+                Task {
+                    if let currentUserId = authManager.user?.uid {
+                        await navigationCoordinator.checkForPendingReviewReminders(userId: currentUserId)
+                    }
+                }
             case .inactive:
                 print("App became inactive")
             @unknown default:
@@ -78,6 +84,14 @@ struct AppView: View {
                 ChatLoaderView(chatRoomId: chatRoomId)
                     .onDisappear {
                         navigationCoordinator.clearPendingNavigation()
+                    }
+            }
+        }
+        .sheet(isPresented: $navigationCoordinator.shouldShowReviewReminder) {
+            if let reviewRequest = navigationCoordinator.pendingReviewRequest {
+                ReviewSheetView(request: reviewRequest)
+                    .onDisappear {
+                        navigationCoordinator.clearReviewReminder()
                     }
             }
         }

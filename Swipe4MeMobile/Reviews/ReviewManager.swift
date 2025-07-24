@@ -65,6 +65,9 @@ final class ReviewManager {
             // 4. Calculate and update average rating (separate transaction)
             await updateUserAverage(userId: revieweeId)
             
+            // 5. Clean up pending reminder for this request
+            await removePendingReminder(userId: currentUserId, requestId: requestId)
+            
             errorMessage = ""
             return true
             
@@ -97,6 +100,85 @@ final class ReviewManager {
             
         } catch {
             print("Error updating user average rating: \(error.localizedDescription)")
+            errorMessage = error.localizedDescription
+        }
+    }
+    
+    /// Handles when user dismisses a review prompt (initial or reminder)
+    /// - Parameter requestId: The request ID that needs review
+    func handleReviewDismissal(for requestId: String) async {
+        guard let currentUserId = Auth.auth().currentUser?.uid else {
+            print("Error: No authenticated user found")
+            errorMessage = "User not authenticated"
+            return
+        }
+        
+        do {
+            // Get or create user reminders document
+            let userRemindersRef = db.collection("userReviewReminders").document(currentUserId)
+            let userRemindersDoc = try await userRemindersRef.getDocument()
+            
+            var userReminders: UserReviewReminders
+            if userRemindersDoc.exists {
+                userReminders = try userRemindersDoc.data(as: UserReviewReminders.self)
+            } else {
+                userReminders = UserReviewReminders(userId: currentUserId)
+            }
+            
+            // Get existing reminder or create new one
+            var reminderInfo = userReminders.getPendingReminder(for: requestId) ?? 
+                PendingReviewReminder(requestId: requestId)
+            
+            // Increment dismissal count
+            reminderInfo.reminderCount += 1
+            
+            if reminderInfo.reminderCount == 1 {
+                // First dismissal - set up for app-open reminder
+                reminderInfo.needsReminder = true
+                reminderInfo.reminderShown = false
+                print("First dismissal: Will remind on next app open")
+            } else {
+                // Subsequent dismissal - stop auto-reminding but keep for manual view
+                reminderInfo.needsReminder = false
+                reminderInfo.reminderShown = true
+                print("Subsequent dismissal: Stopping auto-reminders")
+            }
+            
+            // Update user reminders
+            userReminders.setPendingReminder(reminderInfo)
+            
+            // Save to Firestore
+            try userRemindersRef.setData(from: userReminders)
+            
+            print("Review dismissal handled for user \(currentUserId), request \(requestId), count: \(reminderInfo.reminderCount)")
+        } catch {
+            print("Error handling review dismissal: \(error.localizedDescription)")
+            errorMessage = error.localizedDescription
+        }
+    }
+    
+    /// Removes a pending reminder from the user's reminders collection when review is completed
+    /// - Parameters:
+    ///   - userId: The user ID who completed the review
+    ///   - requestId: The request ID that was reviewed
+    private func removePendingReminder(userId: String, requestId: String) async {
+        do {
+            let userRemindersRef = db.collection("userReviewReminders").document(userId)
+            let userRemindersDoc = try await userRemindersRef.getDocument()
+            
+            if userRemindersDoc.exists,
+               var userReminders = try? userRemindersDoc.data(as: UserReviewReminders.self) {
+                
+                // Remove the pending reminder for this request
+                userReminders.removePendingReminder(for: requestId)
+                
+                // Update the document
+                try userRemindersRef.setData(from: userReminders)
+                
+                print("Removed pending reminder for user \(userId), request \(requestId)")
+            }
+        } catch {
+            print("Error removing pending reminder: \(error.localizedDescription)")
             errorMessage = error.localizedDescription
         }
     }

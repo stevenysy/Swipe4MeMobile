@@ -77,6 +77,11 @@ struct ReviewSheetView: View {
                     .disabled(selectedRating == 0 || isSubmitting)
                     
                     Button("Remind Me Later") {
+                        Task {
+                            if let requestId = request.id {
+                                await reviewManager.handleReviewDismissal(for: requestId)
+                            }
+                        }
                         dismiss()
                     }
                     .foregroundColor(.secondary)
