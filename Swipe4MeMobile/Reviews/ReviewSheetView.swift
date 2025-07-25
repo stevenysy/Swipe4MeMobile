@@ -45,17 +45,8 @@ struct ReviewSheetView: View {
                 .padding(.horizontal)
                 
                 // Star Rating
-                VStack(spacing: 16) {
-                    StarRatingView(rating: $selectedRating)
-                    
-                    if selectedRating > 0 {
-                        Text(ratingDescription)
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
-                            .transition(.opacity)
-                    }
-                }
-                .padding(.horizontal)
+                StarRatingView(rating: $selectedRating)
+                    .padding(.horizontal)
                 
                 Spacer()
                 
@@ -99,17 +90,7 @@ struct ReviewSheetView: View {
             fetchRevieweeName()
         }
     }
-    
-    private var ratingDescription: String {
-        switch selectedRating {
-        case 1: return "Poor experience"
-        case 2: return "Below expectations"
-        case 3: return "Good experience"
-        case 4: return "Great experience"
-        case 5: return "Excellent experience!"
-        default: return ""
-        }
-    }
+
     
     private func submitReview() {
         guard selectedRating > 0, let requestId = request.id else { return }
