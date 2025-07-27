@@ -31,6 +31,13 @@ struct SwipeRequest: Codable, Identifiable, Equatable, Hashable {
         self.cloudTaskNames = nil
         self.createdAt = Timestamp()
     }
+    
+    /// Gets the other user ID in this request (the one that isn't the current user)
+    /// - Parameter currentUserId: The current user's ID
+    /// - Returns: The other user's ID (either requesterId or swiperId)
+    func getOtherUserId(currentUserId: String) -> String {
+        return currentUserId == requesterId ? swiperId : requesterId
+    }
 }
 
 enum RequestStatus: String, Codable, CaseIterable {
