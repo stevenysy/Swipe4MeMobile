@@ -97,11 +97,11 @@ struct UserReviewReminders: Codable, Identifiable, Equatable, Hashable {
     
     /// Gets the next reminder that needs to be shown
     func getNextReminderToShow() -> PendingReviewReminder? {
-        return pendingReminders.values.first { $0.needsReminder && !$0.reminderShown }
+        return pendingReminders.values.first { !$0.isShown }
     }
     
     /// Gets count of all pending reminders
     var totalPendingCount: Int {
-        return pendingReminders.values.filter { $0.needsReminder }.count
+        return pendingReminders.values.filter { !$0.isShown }.count
     }
 } 

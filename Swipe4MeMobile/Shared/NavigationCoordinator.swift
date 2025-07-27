@@ -53,8 +53,55 @@ final class NavigationCoordinator {
     }
     
     func clearReviewSheet(reviewSubmitted: Bool) {
-        pendingReviewRequest = nil
-        shouldShowReviewReminder = false
+        if !reviewSubmitted {
+            // Create reminder when user dismisses without submitting
+            Task {
+                await createReminder()
+                // Clear state after reminder creation completes
+                pendingReviewRequest = nil
+                shouldShowReviewReminder = false
+            }
+        } else {
+            // Clear state immediately if review was submitted
+            pendingReviewRequest = nil
+            shouldShowReviewReminder = false
+        }
+    }
+    
+    // MARK: - Private Helper Methods
+    
+    private func createReminder() async {
+        guard let request = pendingReviewRequest,
+              let requestId = request.id else {
+            print("Error: Missing request or user information for reminder creation")
+            return
+        }
+        
+        let currentUserId = UserManager.shared.userID
+        
+        do {
+            // Get or create user reminders document
+            let userRemindersRef = db.collection("userReviewReminders").document(currentUserId)
+            let userRemindersDoc = try await userRemindersRef.getDocument()
+            
+            var userReminders: UserReviewReminders
+            if userRemindersDoc.exists {
+                userReminders = try userRemindersDoc.data(as: UserReviewReminders.self)
+            } else {
+                userReminders = UserReviewReminders(userId: currentUserId)
+            }
+            
+            // Create new reminder with current timestamp (dismissal time)
+            let reminder = PendingReviewReminder(requestId: requestId, isShown: false)
+            
+            // Update user reminders and save
+            userReminders.setPendingReminder(reminder)
+            try userRemindersRef.setData(from: userReminders)
+            
+            print("Created reminder for dismissed review sheet: \(requestId)")
+        } catch {
+            print("Error creating reminder on dismissal: \(error.localizedDescription)")
+        }
     }
     
     func checkForPendingReviewReminders(userId: String) async {
@@ -70,6 +117,12 @@ final class NavigationCoordinator {
                let userReminders = try? userRemindersDoc.data(as: UserReviewReminders.self),
                let nextReminder = userReminders.getNextReminderToShow() {
                 
+                // Check if enough time has passed since reminder was created (8-hour cooldown)
+                guard nextReminder.shouldShowAgain() else {
+                    print("Skipping review reminder for request \(nextReminder.requestId) - still in cooldown or already shown")
+                    return
+                }
+                
                 // Fetch the actual SwipeRequest for the reminder
                 let requestDoc = try await db
                     .collection("swipeRequests")
@@ -80,10 +133,10 @@ final class NavigationCoordinator {
                     // Show the review sheet
                     showReviewSheet(request: request)
                     
-                    // Mark reminder as shown in user reminders collection
+                    // Mark reminder as shown in user reminders collection (one-time only)
                     var updatedUserReminders = userReminders
                     var updatedReminder = nextReminder
-                    updatedReminder.reminderShown = true
+                    updatedReminder.isShown = true
                     updatedUserReminders.setPendingReminder(updatedReminder)
                     
                     try db.collection("userReviewReminders")

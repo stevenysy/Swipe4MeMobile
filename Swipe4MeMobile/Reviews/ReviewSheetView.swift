@@ -68,11 +68,6 @@ struct ReviewSheetView: View {
                     .disabled(selectedRating == 0 || isSubmitting)
                     
                     Button("Remind Me Later") {
-                        Task {
-                            if let requestId = request.id {
-                                await reviewManager.handleReviewDismissal(for: requestId)
-                            }
-                        }
                         dismiss()
                     }
                     .foregroundColor(.secondary)
@@ -90,7 +85,6 @@ struct ReviewSheetView: View {
             fetchRevieweeName()
         }
     }
-
     
     private func submitReview() {
         guard selectedRating > 0, let requestId = request.id else { return }
@@ -109,7 +103,7 @@ struct ReviewSheetView: View {
                 
                 if success {
                     snackbarManager.show(title: "Review submitted! Thanks for your feedback.", style: .success)
-                    dismiss()
+                    NavigationCoordinator.shared.clearReviewSheet(reviewSubmitted: true)
                 } else {
                     snackbarManager.show(title: "Failed to submit review: \(reviewManager.errorMessage)", style: .error)
                 }
@@ -146,4 +140,4 @@ struct ReviewSheetView: View {
     ReviewSheetView(
         request: SwipeRequest.mockRequests.first!
     )
-} 
+}

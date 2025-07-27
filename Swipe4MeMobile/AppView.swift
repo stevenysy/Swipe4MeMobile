@@ -91,7 +91,7 @@ struct AppView: View {
             if let reviewRequest = navigationCoordinator.pendingReviewRequest {
                 ReviewSheetView(request: reviewRequest)
                     .onDisappear {
-                        navigationCoordinator.clearReviewReminder()
+                        navigationCoordinator.clearReviewSheet(reviewSubmitted: false)
                     }
             }
         }
