@@ -70,6 +70,10 @@ final class SwipeRequestCardViewModel {
         }
     }
     
+    func handleRate(for request: SwipeRequest) {
+        navigationCoordinator.showReviewSheet(request: request)
+    }
+    
     func confirmCancel() {
         guard let request = requestToCancel else { return }
         

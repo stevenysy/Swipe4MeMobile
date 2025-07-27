@@ -12,14 +12,14 @@ struct SwipeRequestCardView: View {
     let request: SwipeRequest
     var isExpanded: Bool = false
     var isRequesterCard: Bool = true
-
+    
     @State private var viewModel = SwipeRequestCardViewModel()
     
     // Show chat icon for all statuses to allow access to chat history
     private var shouldShowChatIcon: Bool {
         return true
     }
-
+    
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             HStack {
@@ -30,7 +30,7 @@ struct SwipeRequestCardView: View {
                         .font(.subheadline)
                         .foregroundColor(.secondary)
                 }
-
+                
                 Spacer()
                 
                 HStack(spacing: 8) {
@@ -52,7 +52,7 @@ struct SwipeRequestCardView: View {
                     }
                 }
             }
-
+            
             if isExpanded {
                 if viewModel.isEditing {
                     editStateView
@@ -104,22 +104,22 @@ struct SwipeRequestCardView: View {
             }
         }
     }
-
+    
     @ViewBuilder
     private var readOnlyStateView: some View {
         Divider()
-
+        
         VStack(alignment: .leading, spacing: 8) {
             Text(isRequesterCard ? "Swiper:" : "Requester:")
                 .font(.headline)
         }
-
+        
         if isRequesterCard {
             UserInfoView(userId: request.swiperId)
         } else {
             UserInfoView(userId: request.requesterId)
         }
-
+        
         // Modular action buttons based on status and user role
         actionButtonsForStatus
     }
@@ -129,51 +129,90 @@ struct SwipeRequestCardView: View {
         switch request.status {
         case .inProgress:
             inProgressActionButtons
+        case .awaitingReview:
+            awaitingReviewActionButtons
         default:
             defaultActionButtons
         }
     }
     
     @ViewBuilder
+    private var awaitingReviewActionButtons: some View {
+        Button(action: {
+            viewModel.handleRate(for: request)
+        }) {
+            HStack {
+                Text("Rate")
+            }
+            .frame(maxWidth: .infinity)
+        }
+        .buttonStyle(.borderedProminent)
+        .controlSize(.large)
+    }
+    
+    @ViewBuilder
     private var inProgressActionButtons: some View {
         HStack {
             if isRequesterCard {
-                Button("Swiped!") {
+                Button(action: {
                     viewModel.handleSwiped(for: request)
+                }) {
+                    HStack {
+                        Text("Swiped!")
+                    }
+                    .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.borderedProminent)
-                .frame(maxWidth: .infinity)
+                .controlSize(.large)
             }
             
-            Button("Cancel", role: .destructive) {
+            Button(role: .destructive) {
                 viewModel.handleDelete(for: request)
+            } label: {
+                HStack {
+                    Text("Cancel")
+                }
+                .frame(maxWidth: .infinity)
             }
             .buttonStyle(.bordered)
-            .frame(maxWidth: .infinity)
+            .controlSize(.large)
         }
     }
     
     @ViewBuilder
     private var defaultActionButtons: some View {
-        HStack {
-            Button("Edit") {
-                viewModel.handleEdit(for: request)
+        // Only show edit/cancel for statuses that allow modifications
+        if request.status != .awaitingReview && request.status != .complete && request.status != .canceled {
+            HStack {
+                Button(action: {
+                    viewModel.handleEdit(for: request)
+                }) {
+                    HStack {
+                        Text("Edit")
+                    }
+                    .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.large)
+                
+                Button(role: .destructive) {
+                    viewModel.handleDelete(for: request)
+                } label: {
+                    HStack {
+                        Text("Cancel")
+                    }
+                    .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.large)
             }
-            .buttonStyle(.bordered)
-            .frame(maxWidth: .infinity)
-
-            Button("Cancel", role: .destructive) {
-                viewModel.handleDelete(for: request)
-            }
-            .buttonStyle(.bordered)
-            .frame(maxWidth: .infinity)
         }
     }
-
+    
     @ViewBuilder
     private var editStateView: some View {
         Divider()
-
+        
         VStack(alignment: .leading, spacing: 16) {
             HStack {
                 Text("Location")
@@ -185,7 +224,7 @@ struct SwipeRequestCardView: View {
                 }
             }
             .pickerStyle(.menu)
-
+            
             DatePicker(
                 "Meeting Time",
                 selection: $viewModel.editedMeetingTime,
@@ -193,14 +232,14 @@ struct SwipeRequestCardView: View {
             )
         }
         .fontWeight(.semibold)
-
+        
         HStack {
             Button("Cancel", role: .cancel) {
                 viewModel.cancelEditing()
             }
             .buttonStyle(.bordered)
             .frame(maxWidth: .infinity)
-
+            
             Button("Submit") {
                 viewModel.handleSubmit(for: request)
             }
@@ -212,37 +251,37 @@ struct SwipeRequestCardView: View {
 }
 
 #Preview {
-//    VStack(spacing: 20) {
-//        if let openRequest = SwipeRequest.mockRequests.first,
-//           let inProgressRequest = SwipeRequest.mockRequests.first {
-//            
-//            // Create an in-progress version for testing
-//            var inProgressRequestCopy = inProgressRequest
-//            inProgressRequestCopy.status = .inProgress
-//            
-//            // Open request (default behavior)
-//            SwipeRequestCardView(
-//                request: openRequest, 
-//                isExpanded: true, 
-//                isRequesterCard: true
-//            )
-//            
-//            // In-progress request (requester view - shows "Swiped!" button)
-//            SwipeRequestCardView(
-//                request: inProgressRequestCopy, 
-//                isExpanded: true, 
-//                isRequesterCard: true
-//            )
-//            
-//            // In-progress request (swiper view - no "Swiped!" button)
-//            SwipeRequestCardView(
-//                request: inProgressRequestCopy, 
-//                isExpanded: true, 
-//                isRequesterCard: false
-//            )
-//        }
-//    }
-//    .padding()
-//    .background(Color(.systemGroupedBackground))
-//    .environment(SnackbarManager())
+    //    VStack(spacing: 20) {
+    //        if let openRequest = SwipeRequest.mockRequests.first,
+    //           let inProgressRequest = SwipeRequest.mockRequests.first {
+    //            
+    //            // Create an in-progress version for testing
+    //            var inProgressRequestCopy = inProgressRequest
+    //            inProgressRequestCopy.status = .inProgress
+    //            
+    //            // Open request (default behavior)
+    //            SwipeRequestCardView(
+    //                request: openRequest, 
+    //                isExpanded: true, 
+    //                isRequesterCard: true
+    //            )
+    //            
+    //            // In-progress request (requester view - shows "Swiped!" button)
+    //            SwipeRequestCardView(
+    //                request: inProgressRequestCopy, 
+    //                isExpanded: true, 
+    //                isRequesterCard: true
+    //            )
+    //            
+    //            // In-progress request (swiper view - no "Swiped!" button)
+    //            SwipeRequestCardView(
+    //                request: inProgressRequestCopy, 
+    //                isExpanded: true, 
+    //                isRequesterCard: false
+    //            )
+    //        }
+    //    }
+    //    .padding()
+    //    .background(Color(.systemGroupedBackground))
+    //    .environment(SnackbarManager())
 }
