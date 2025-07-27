@@ -35,22 +35,32 @@ struct Review: Codable, Identifiable, Equatable, Hashable {
 struct PendingReviewReminder: Codable, Identifiable, Equatable, Hashable {
     var id: String { requestId } // Use requestId as identifier
     let requestId: String
-    var reminderCount: Int = 0
-    var needsReminder: Bool = false
-    var reminderShown: Bool = false
+    var isShown: Bool = false // Track if reminder has been shown (one-time only)
     var createdAt: Timestamp = Timestamp()
+    
+    // MARK: - Constants
+    private static let reminderCooldownInterval: TimeInterval = 8 * 60 * 60 // 8 hours
     
     init(
         requestId: String,
-        reminderCount: Int = 0,
-        needsReminder: Bool = false,
-        reminderShown: Bool = false
+        isShown: Bool = false
     ) {
         self.requestId = requestId
-        self.reminderCount = reminderCount
-        self.needsReminder = needsReminder
-        self.reminderShown = reminderShown
+        self.isShown = isShown
         self.createdAt = Timestamp()
+    }
+    
+    /// Check if the reminder should be shown based on creation time and shown status
+    /// - Returns: True if the reminder should be shown, false otherwise
+    func shouldShowAgain() -> Bool {
+        // If already shown once, don't show again (one-time reminder policy)
+        if isShown {
+            return false
+        }
+        
+        // Check if enough time has passed since reminder was created (8-hour cooldown)
+        let timeSinceCreated = Date().timeIntervalSince(createdAt.dateValue())
+        return timeSinceCreated >= Self.reminderCooldownInterval
     }
 }
 

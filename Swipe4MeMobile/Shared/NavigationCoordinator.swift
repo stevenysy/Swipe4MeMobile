@@ -45,14 +45,14 @@ final class NavigationCoordinator {
         shouldOpenChat = false
     }
     
-    // MARK: - Review Reminder Navigation
+    // MARK: - Review Sheet Navigation
     
-    func showReviewReminder(request: SwipeRequest) {
+    func showReviewSheet(request: SwipeRequest) {
         pendingReviewRequest = request
         shouldShowReviewReminder = true
     }
     
-    func clearReviewReminder() {
+    func clearReviewSheet(reviewSubmitted: Bool) {
         pendingReviewRequest = nil
         shouldShowReviewReminder = false
     }
@@ -77,8 +77,8 @@ final class NavigationCoordinator {
                     .getDocument()
                 
                 if let request = try? requestDoc.data(as: SwipeRequest.self) {
-                    // Show the reminder
-                    showReviewReminder(request: request)
+                    // Show the review sheet
+                    showReviewSheet(request: request)
                     
                     // Mark reminder as shown in user reminders collection
                     var updatedUserReminders = userReminders
