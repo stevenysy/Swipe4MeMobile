@@ -91,10 +91,21 @@ struct ReviewSheetView: View {
         
         isSubmitting = true
         
+        // Determine who is being reviewed based on current user's role
+        let currentUserId = UserManager.shared.userID
+        let revieweeId: String
+        if currentUserId == request.requesterId {
+            // Current user is the requester, so they're reviewing the swiper
+            revieweeId = request.swiperId
+        } else {
+            // Current user is the swiper, so they're reviewing the requester
+            revieweeId = request.requesterId
+        }
+        
         Task {
             let success = await reviewManager.submitReview(
                 requestId: requestId,
-                revieweeId: request.swiperId,
+                revieweeId: revieweeId,
                 rating: selectedRating
             )
             

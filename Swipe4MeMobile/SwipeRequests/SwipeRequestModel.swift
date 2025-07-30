@@ -16,6 +16,8 @@ struct SwipeRequest: Codable, Identifiable, Equatable, Hashable {
     var meetingTime: Timestamp
     var status: RequestStatus
     var cloudTaskNames: CloudTaskNames?
+    var requesterReviewCompleted: Bool = false
+    var swiperReviewCompleted: Bool = false
 
     let createdAt: Timestamp
 
@@ -29,6 +31,8 @@ struct SwipeRequest: Codable, Identifiable, Equatable, Hashable {
         self.meetingTime = meetingTime
         self.status = status
         self.cloudTaskNames = nil
+        self.requesterReviewCompleted = false
+        self.swiperReviewCompleted = false
         self.createdAt = Timestamp()
     }
     
@@ -37,6 +41,35 @@ struct SwipeRequest: Codable, Identifiable, Equatable, Hashable {
     /// - Returns: The other user's ID (either requesterId or swiperId)
     func getOtherUserId(currentUserId: String) -> String {
         return currentUserId == requesterId ? swiperId : requesterId
+    }
+    
+    /// Checks if the specified user has completed their review
+    /// - Parameter userId: The user ID to check
+    /// - Returns: True if the user has completed their review, false otherwise
+    func hasUserCompletedReview(userId: String) -> Bool {
+        if userId == requesterId {
+            return requesterReviewCompleted
+        } else if userId == swiperId {
+            return swiperReviewCompleted
+        }
+        return false
+    }
+    
+    /// Checks if both parties have completed their reviews
+    /// - Returns: True if both requester and swiper have completed reviews
+    func bothPartiesCompletedReviews() -> Bool {
+        return requesterReviewCompleted && swiperReviewCompleted
+    }
+    
+    /// Checks if we're waiting for the other party's review (current user completed, other hasn't)
+    /// - Parameter currentUserId: The current user's ID
+    /// - Returns: True if current user completed but other party hasn't
+    func isWaitingForOtherPartyReview(currentUserId: String) -> Bool {
+        let currentUserCompleted = hasUserCompletedReview(userId: currentUserId)
+        let otherUserId = getOtherUserId(currentUserId: currentUserId)
+        let otherUserCompleted = hasUserCompletedReview(userId: otherUserId)
+        
+        return currentUserCompleted && !otherUserCompleted
     }
 }
 

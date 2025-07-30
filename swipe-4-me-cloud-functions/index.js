@@ -598,3 +598,64 @@ exports.sendChatMessageNotification = onDocumentCreated(
     }
   }
 );
+
+/**
+ * Sends push notification when a request is marked as swiped (status changes to awaitingReview)
+ */
+exports.sendSwipedNotification = onDocumentUpdated(
+  "swipeRequests/{requestId}",
+  async (event) => {
+    const before = event.data.before.data();
+    const after = event.data.after.data();
+
+    // Check if request was just marked as swiped (moved to awaitingReview)
+    const wasMarkedSwiped =
+      before.status !== "awaitingReview" && after.status === "awaitingReview";
+
+    if (!wasMarkedSwiped) {
+      return;
+    }
+
+    try {
+      console.log(`Request ${event.params.requestId} was marked as swiped`);
+
+      // Get the swiper's document
+      const swiperDoc = await db.collection("users").doc(after.swiperId).get();
+
+      const fcmToken = swiperDoc.data()?.fcmToken;
+      if (!fcmToken) {
+        console.log("No FCM token found for swiper");
+        return;
+      }
+
+      // Get requester's name for notification
+      const requesterDoc = await db
+        .collection("users")
+        .doc(after.requesterId)
+        .get();
+
+      let requesterName = "Someone";
+      if (requesterDoc.exists) {
+        const requesterData = requesterDoc.data();
+        requesterName =
+          `${requesterData.firstName} ${requesterData.lastName}`.trim();
+      }
+
+      await admin.messaging().send({
+        token: fcmToken,
+        notification: {
+          title: "Time to Review!",
+          body: `${requesterName} completed your swipe session at ${after.location}. Please rate your experience!`,
+        },
+        data: {
+          requestId: event.params.requestId,
+          type: "reviewRequest",
+        },
+      });
+
+      console.log("Swiped notification sent successfully to swiper");
+    } catch (error) {
+      console.error("Error sending swiped notification:", error);
+    }
+  }
+);
