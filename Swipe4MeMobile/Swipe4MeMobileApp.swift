@@ -13,6 +13,7 @@ import UserNotifications
 // MARK: - Notification Names
 extension Notification.Name {
     static let openChatNotification = Notification.Name("openChatNotification")
+    static let openReviewSheetNotification = Notification.Name("openReviewSheetNotification")
 }
 
 class AppDelegate: NSObject, UIApplicationDelegate {
@@ -66,16 +67,26 @@ extension AppDelegate: UNUserNotificationCenterDelegate {
         let userInfo = response.notification.request.content.userInfo
         
         // Handle notification tap
-        if let notificationType = userInfo["type"] as? String,
-           shouldOpenChat(for: notificationType),
-           let chatRoomId = userInfo["chatRoomId"] as? String {
-            
-            // Post notification to SwiftUI views
-            NotificationCenter.default.post(
-                name: .openChatNotification,
-                object: nil,
-                userInfo: ["chatRoomId": chatRoomId]
-            )
+        if let notificationType = userInfo["type"] as? String {
+            if shouldOpenChat(for: notificationType),
+               let chatRoomId = userInfo["chatRoomId"] as? String {
+                
+                // Post notification to SwiftUI views to open chat
+                NotificationCenter.default.post(
+                    name: .openChatNotification,
+                    object: nil,
+                    userInfo: ["chatRoomId": chatRoomId]
+                )
+            } else if shouldShowReviewSheet(for: notificationType),
+                      let requestId = userInfo["requestId"] as? String {
+                
+                // Post notification to open review sheet
+                NotificationCenter.default.post(
+                    name: .openReviewSheetNotification,
+                    object: nil,
+                    userInfo: ["requestId": requestId]
+                )
+            }
         }
         
         completionHandler()
@@ -90,6 +101,15 @@ extension AppDelegate: UNUserNotificationCenterDelegate {
         case "proposalAccepted":
             return true
         case "proposalDeclined":
+            return true
+        default:
+            return false
+        }
+    }
+    
+    private func shouldShowReviewSheet(for notificationType: String) -> Bool {
+        switch notificationType {
+        case "reviewRequest":
             return true
         default:
             return false

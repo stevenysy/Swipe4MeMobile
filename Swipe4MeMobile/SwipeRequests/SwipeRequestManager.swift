@@ -31,8 +31,14 @@ enum CloudTaskError: Error, LocalizedError {
 @MainActor
 final class SwipeRequestManager {
     static let shared = SwipeRequestManager()
+    
     let db = Firestore.firestore()
+    private let reviewManager = ReviewManager.shared
+    
     var errorMessage = ""
+    var isLoading = false
+    
+    private init() {}
 
     func addSwipeRequestToDatabase(swipeRequest: SwipeRequest, isEdit: Bool) {
         do {
@@ -94,11 +100,17 @@ final class SwipeRequestManager {
         
         db.collection("swipeRequests").document(id).updateData([
             "status": RequestStatus.awaitingReview.rawValue
-        ]) { error in
+        ]) { [weak self] error in
             if let error = error {
-                self.errorMessage = error.localizedDescription   // <- Triggers alert
+                self?.errorMessage = error.localizedDescription   // <- Triggers alert
             } else {
-                self.errorMessage = ""   // Clear any previous error
+                self?.errorMessage = ""   // Clear any previous error
+                
+                // Create review reminder for swiper only (requester gets immediate review sheet)
+                Task {
+                    guard let requestId = request.id else { return }
+                    await self?.reviewManager.createReviewReminder(userId: request.swiperId, requestId: requestId)
+                }
             }
         }
     }
