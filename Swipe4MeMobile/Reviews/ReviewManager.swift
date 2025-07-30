@@ -36,6 +36,14 @@ final class ReviewManager {
         }
         
         do {
+            // First, get the current request to check review status
+            let requestRef = db.collection("swipeRequests").document(requestId)
+            let requestDoc = try await requestRef.getDocument()
+            guard let request = try? requestDoc.data(as: SwipeRequest.self) else {
+                errorMessage = "Request not found"
+                return false
+            }
+            
             let batch = db.batch()
             
             // 1. Add the review
@@ -55,17 +63,25 @@ final class ReviewManager {
                 "totalReviews": FieldValue.increment(Int64(1))
             ], forDocument: userRef)
             
-            // 3. Update request status to complete
-            let requestRef = db.collection("swipeRequests").document(requestId)
-            batch.updateData(["status": RequestStatus.complete.rawValue], forDocument: requestRef)
+            // 3. Update the appropriate review completion flag
+            let isRequester = currentUserId == request.requesterId
+            let reviewCompletionField = isRequester ? "requesterReviewCompleted" : "swiperReviewCompleted"
+            batch.updateData([reviewCompletionField: true], forDocument: requestRef)
+            
+            // 4. Check if both parties have now completed reviews
+            let otherPartyCompleted = isRequester ? request.swiperReviewCompleted : request.requesterReviewCompleted
+            if otherPartyCompleted {
+                // Both parties have now completed reviews, mark request as complete
+                batch.updateData(["status": RequestStatus.complete.rawValue], forDocument: requestRef)
+            }
             
             // Commit the batch
             try await batch.commit()
             
-            // 4. Calculate and update average rating (separate transaction)
+            // 5. Calculate and update average rating (separate transaction)
             await updateUserAverage(userId: revieweeId)
             
-            // 5. Clean up pending reminder for this request
+            // 6. Clean up pending reminder for this request
             await removePendingReminder(userId: currentUserId, requestId: requestId)
             
             errorMessage = ""
