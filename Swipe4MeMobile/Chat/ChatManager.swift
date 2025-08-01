@@ -390,6 +390,19 @@ final class ChatManager {
         await sendMessage(systemMessage)
     }
     
+    /// Sends interactive review request message when request is awaiting review
+    func sendReviewRequestMessage(requestId: String) async {
+        let reviewMessage = ChatMessage.createReviewRequestMessage(chatRoomId: requestId)
+        await sendMessage(reviewMessage)
+    }
+    
+    /// Sends confirmation message when a review is submitted
+    func sendReviewSubmittedMessage(requestId: String, reviewerUserId: String) async {
+        let reviewerName = await getUserName(userId: reviewerUserId)
+        let confirmationMessage = ChatMessage.reviewSubmitted(chatRoomId: requestId, reviewerName: reviewerName)
+        await sendMessage(confirmationMessage)
+    }
+    
     /// Closes a chat room when request is cancelled
     func closeChatRoom(requestId: String) async {
         do {
