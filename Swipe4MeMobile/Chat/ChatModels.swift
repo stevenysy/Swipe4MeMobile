@@ -169,6 +169,7 @@ extension ChatMessage {
         case changeProposal = "changeProposal"
         case proposalAccepted = "proposalAccepted"
         case proposalDeclined = "proposalDeclined"
+        case reviewRequest = "reviewRequest"
         
         var displayName: String {
             switch self {
@@ -182,6 +183,8 @@ extension ChatMessage {
                 return "Proposal Accepted"
             case .proposalDeclined:
                 return "Proposal Declined"
+            case .reviewRequest:
+                return "Review Request"
             }
         }
         
@@ -190,7 +193,7 @@ extension ChatMessage {
         }
         
         var isInteractive: Bool {
-            return self == .changeProposal
+            return self == .changeProposal || self == .reviewRequest
         }
         
         /// Determines if this message should be displayed as a system message (centered, no bubble)
@@ -198,7 +201,7 @@ extension ChatMessage {
             switch self {
             case .systemNotification, .proposalAccepted, .proposalDeclined:
                 return true
-            case .userMessage, .changeProposal:
+            case .userMessage, .changeProposal, .reviewRequest:
                 return false
             }
         }
@@ -206,7 +209,7 @@ extension ChatMessage {
         /// Determines if this message type should increment unread counts for recipients
         var shouldIncrementUnreadCount: Bool {
             switch self {
-            case .userMessage, .changeProposal, .proposalAccepted, .proposalDeclined:
+            case .userMessage, .changeProposal, .proposalAccepted, .proposalDeclined, .reviewRequest:
                 return true // User-generated content or important responses that require attention
             case .systemNotification:
                 return false // Informational only, don't increment unread
