@@ -327,6 +327,26 @@ extension ChatMessage {
             messageType: .proposalDeclined
         )
     }
+    
+    // MARK: - Review Request Messages
+    
+    /// Creates an interactive review request message
+    static func createReviewRequestMessage(chatRoomId: String) -> ChatMessage {
+        return ChatMessage(
+            chatRoomId: chatRoomId,
+            senderId: "system",
+            content: "Please rate your experience with the other participant",
+            messageType: .reviewRequest
+        )
+    }
+    
+    /// Creates a system message confirming a review was submitted
+    static func reviewSubmitted(chatRoomId: String, reviewerName: String) -> ChatMessage {
+        return createSystemMessage(
+            chatRoomId: chatRoomId,
+            content: "\(reviewerName) submitted their review"
+        )
+    }
 }
 
 // MARK: - Mock Data for Previews
