@@ -10,9 +10,6 @@ import SwiftUI
 struct DashboardUserInfoView: View {
     let user: SFMUser
     
-    // Hardcoded rating for now
-    private let rating: Double = 4.7
-    
     var body: some View {
         HStack(spacing: 16) {
             // User Avatar
@@ -47,9 +44,16 @@ struct DashboardUserInfoView: View {
                         .foregroundColor(.yellow)
                         .font(.caption)
                     
-                    Text(String(format: "%.1f", rating))
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+                    if let averageRating = user.averageRating,
+                       user.totalReviews > 0 {
+                        Text(String(format: "%.1f", averageRating))
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    } else {
+                        Text("No reviews yet")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
                 }
             }
             

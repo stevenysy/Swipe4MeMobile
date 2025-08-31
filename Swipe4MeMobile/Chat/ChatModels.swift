@@ -143,13 +143,17 @@ struct ChatMessage: Codable, Identifiable, Equatable, Hashable {
     // MARK: - Change Proposal Fields
     var proposalId: String? // Links to ChangeProposal document
     
+    // MARK: - Review Request Fields
+    var recipientId: String? // For review requests - who should see this message
+    
     init(
         chatRoomId: String,
         senderId: String,
         content: String,
         timestamp: Timestamp = Timestamp(),
         messageType: MessageType = .userMessage,
-        proposalId: String? = nil
+        proposalId: String? = nil,
+        recipientId: String? = nil
     ) {
         self.chatRoomId = chatRoomId
         self.senderId = senderId
@@ -157,6 +161,7 @@ struct ChatMessage: Codable, Identifiable, Equatable, Hashable {
         self.timestamp = timestamp
         self.messageType = messageType
         self.proposalId = proposalId
+        self.recipientId = recipientId
     }
 }
 
@@ -169,6 +174,7 @@ extension ChatMessage {
         case changeProposal = "changeProposal"
         case proposalAccepted = "proposalAccepted"
         case proposalDeclined = "proposalDeclined"
+        case reviewRequest = "reviewRequest"
         
         var displayName: String {
             switch self {
@@ -182,6 +188,8 @@ extension ChatMessage {
                 return "Proposal Accepted"
             case .proposalDeclined:
                 return "Proposal Declined"
+            case .reviewRequest:
+                return "Review Request"
             }
         }
         
@@ -190,7 +198,7 @@ extension ChatMessage {
         }
         
         var isInteractive: Bool {
-            return self == .changeProposal
+            return self == .changeProposal || self == .reviewRequest
         }
         
         /// Determines if this message should be displayed as a system message (centered, no bubble)
@@ -198,7 +206,7 @@ extension ChatMessage {
             switch self {
             case .systemNotification, .proposalAccepted, .proposalDeclined:
                 return true
-            case .userMessage, .changeProposal:
+            case .userMessage, .changeProposal, .reviewRequest:
                 return false
             }
         }
@@ -206,7 +214,7 @@ extension ChatMessage {
         /// Determines if this message type should increment unread counts for recipients
         var shouldIncrementUnreadCount: Bool {
             switch self {
-            case .userMessage, .changeProposal, .proposalAccepted, .proposalDeclined:
+            case .userMessage, .changeProposal, .proposalAccepted, .proposalDeclined, .reviewRequest:
                 return true // User-generated content or important responses that require attention
             case .systemNotification:
                 return false // Informational only, don't increment unread
@@ -322,6 +330,27 @@ extension ChatMessage {
             senderId: responderId,
             content: "\(declinedBy) declined the proposed changes",
             messageType: .proposalDeclined
+        )
+    }
+    
+    // MARK: - Review Request Messages
+    
+    /// Creates an interactive review request message for a specific recipient
+    static func createReviewRequestMessage(chatRoomId: String, recipientId: String) -> ChatMessage {
+        return ChatMessage(
+            chatRoomId: chatRoomId,
+            senderId: "system",
+            content: "Please rate your experience with the other participant",
+            messageType: .reviewRequest,
+            recipientId: recipientId
+        )
+    }
+    
+    /// Creates a system message confirming a review was submitted
+    static func reviewSubmitted(chatRoomId: String, reviewerName: String) -> ChatMessage {
+        return createSystemMessage(
+            chatRoomId: chatRoomId,
+            content: "\(reviewerName) submitted their review"
         )
     }
 }

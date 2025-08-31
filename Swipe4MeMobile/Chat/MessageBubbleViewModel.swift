@@ -15,6 +15,7 @@ final class MessageBubbleViewModel {
     
     // MARK: - Private Properties
     private let message: ChatMessage
+    private let swipeRequest: SwipeRequest?
     
     // MARK: - Dependencies
     private let chatManager = ChatManager.shared
@@ -22,9 +23,29 @@ final class MessageBubbleViewModel {
     
     // MARK: - Initialization
     
-    init(message: ChatMessage) {
+    init(message: ChatMessage, swipeRequest: SwipeRequest? = nil) {
         self.message = message
+        self.swipeRequest = swipeRequest
     }
+    
+    // MARK: - Computed Properties
+    
+    /// Returns true if current user has completed their review of the other participant
+    var reviewCompleted: Bool {
+        guard let swipeRequest = swipeRequest,
+              let currentUserId = userManager.currentUser?.id else { return false }
+        
+        // Check if current user has completed their review
+        if currentUserId == swipeRequest.requesterId {
+            return swipeRequest.requesterReviewCompleted
+        } else if currentUserId == swipeRequest.swiperId {
+            return swipeRequest.swiperReviewCompleted
+        }
+        
+        return false
+    }
+    
+
     
     // MARK: - Public Methods
     

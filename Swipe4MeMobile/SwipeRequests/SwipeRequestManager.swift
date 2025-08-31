@@ -34,6 +34,7 @@ final class SwipeRequestManager {
     
     let db = Firestore.firestore()
     private let reviewManager = ReviewManager.shared
+    private let chatManager = ChatManager.shared
     
     var errorMessage = ""
     var isLoading = false
@@ -105,6 +106,12 @@ final class SwipeRequestManager {
                 self?.errorMessage = error.localizedDescription   // <- Triggers alert
             } else {
                 self?.errorMessage = ""   // Clear any previous error
+                
+                // Send review request messages to chat for both participants
+                Task {
+                    guard let requestId = request.id else { return }
+                    await self?.chatManager.sendReviewRequestMessage(requestId: requestId)
+                }
                 
                 // Create review reminder for swiper only (requester gets immediate review sheet)
                 Task {
