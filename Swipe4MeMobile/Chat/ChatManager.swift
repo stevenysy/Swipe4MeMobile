@@ -390,10 +390,27 @@ final class ChatManager {
         await sendMessage(systemMessage)
     }
     
-    /// Sends interactive review request message when request is awaiting review
+    /// Sends interactive review request messages to both participants when request is awaiting review
     func sendReviewRequestMessage(requestId: String) async {
-        let reviewMessage = ChatMessage.createReviewRequestMessage(chatRoomId: requestId)
-        await sendMessage(reviewMessage)
+        // Get the chat room to determine participants
+        guard let chatRoom = await getChatRoom(for: requestId) else {
+            errorMessage = "Failed to get chat room for review request"
+            return
+        }
+        
+        // Send review request message to requester (to rate swiper)
+        let requesterReviewMessage = ChatMessage.createReviewRequestMessage(
+            chatRoomId: requestId,
+            recipientId: chatRoom.requesterId
+        )
+        await sendMessage(requesterReviewMessage)
+        
+        // Send review request message to swiper (to rate requester)
+        let swiperReviewMessage = ChatMessage.createReviewRequestMessage(
+            chatRoomId: requestId,
+            recipientId: chatRoom.swiperId
+        )
+        await sendMessage(swiperReviewMessage)
     }
     
     /// Sends confirmation message when a review is submitted

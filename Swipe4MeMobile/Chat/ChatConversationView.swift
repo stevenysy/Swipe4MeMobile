@@ -117,7 +117,9 @@ struct ChatConversationView: View {
                         ForEach(viewModel.messages) { message in
                             MessageBubbleView(
                                 message: message,
-                                isCurrentUser: viewModel.isCurrentUserMessage(message)
+                                isCurrentUser: viewModel.isCurrentUserMessage(message),
+                                swipeRequest: swipeRequest,
+                                otherParticipantId: viewModel.otherParticipantId
                             )
                             .id(message.id)
                         }
@@ -191,22 +193,54 @@ struct ChatConversationView: View {
 struct MessageBubbleView: View {
     let message: ChatMessage
     let isCurrentUser: Bool
+    let swipeRequest: SwipeRequest
+    let otherParticipantId: String?
     
     @State private var viewModel: MessageBubbleViewModel
     
-    init(message: ChatMessage, isCurrentUser: Bool) {
+    init(message: ChatMessage, isCurrentUser: Bool, swipeRequest: SwipeRequest, otherParticipantId: String?) {
         self.message = message
         self.isCurrentUser = isCurrentUser
-        self._viewModel = State(initialValue: MessageBubbleViewModel(message: message))
+        self.swipeRequest = swipeRequest
+        self.otherParticipantId = otherParticipantId
+        self._viewModel = State(initialValue: MessageBubbleViewModel(message: message, swipeRequest: swipeRequest))
     }
     
     var body: some View {
-        if message.messageType.shouldDisplayAsSystemMessage {
+        // Check if this message has a specific recipient and current user is not the recipient
+        if let recipientId = message.recipientId,
+           let currentUserId = Auth.auth().currentUser?.uid,
+           recipientId != currentUserId {
+            // Don't show this message to non-recipients
+            EmptyView()
+        } else if message.messageType.shouldDisplayAsSystemMessage {
             // System messages centered with no spacing constraints
             HStack {
                 Spacer()
                 systemMessageView
                 Spacer()
+            }
+        } else if message.messageType == .reviewRequest {
+            // Review request cards centered like system messages but with card styling
+            // Since message is filtered by recipient, we only need to check completion status
+            if !viewModel.reviewCompleted {
+                // Show interactive review card
+                HStack {
+                    Spacer()
+                    ReviewRequestCardView(
+                        message: message,
+                        swipeRequest: swipeRequest,
+                        otherParticipantId: otherParticipantId ?? ""
+                    )
+                    Spacer()
+                }
+            } else {
+                // Show completed review card
+                HStack {
+                    Spacer()
+                    ReviewCompletedCardView()
+                    Spacer()
+                }
             }
         } else if message.messageType == .changeProposal {
             // Change proposals follow same positioning as regular messages but with card style
@@ -484,7 +518,35 @@ struct ReviewRequestCardView: View {
     }
 }
 
+// MARK: - Review Completed Card View
 
+struct ReviewCompletedCardView: View {
+    var body: some View {
+        HStack(spacing: 12) {
+            // Green checkmark
+            Image(systemName: "checkmark.circle.fill")
+                .foregroundColor(.green)
+                .font(.title3)
+            
+            // Completion message
+            Text("Review submitted! Thanks for sharing your feedback.")
+                .font(.subheadline)
+                .foregroundColor(.primary)
+                .multilineTextAlignment(.leading)
+            
+            Spacer()
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .background(Color(.systemBackground))
+        .cornerRadius(12)
+        .shadow(color: .black.opacity(0.1), radius: 8, x: 0, y: 2)
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(Color(.systemGray4), lineWidth: 1)
+        )
+    }
+}
 
 // MARK: - Preview
 

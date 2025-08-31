@@ -143,13 +143,17 @@ struct ChatMessage: Codable, Identifiable, Equatable, Hashable {
     // MARK: - Change Proposal Fields
     var proposalId: String? // Links to ChangeProposal document
     
+    // MARK: - Review Request Fields
+    var recipientId: String? // For review requests - who should see this message
+    
     init(
         chatRoomId: String,
         senderId: String,
         content: String,
         timestamp: Timestamp = Timestamp(),
         messageType: MessageType = .userMessage,
-        proposalId: String? = nil
+        proposalId: String? = nil,
+        recipientId: String? = nil
     ) {
         self.chatRoomId = chatRoomId
         self.senderId = senderId
@@ -157,6 +161,7 @@ struct ChatMessage: Codable, Identifiable, Equatable, Hashable {
         self.timestamp = timestamp
         self.messageType = messageType
         self.proposalId = proposalId
+        self.recipientId = recipientId
     }
 }
 
@@ -330,13 +335,14 @@ extension ChatMessage {
     
     // MARK: - Review Request Messages
     
-    /// Creates an interactive review request message
-    static func createReviewRequestMessage(chatRoomId: String) -> ChatMessage {
+    /// Creates an interactive review request message for a specific recipient
+    static func createReviewRequestMessage(chatRoomId: String, recipientId: String) -> ChatMessage {
         return ChatMessage(
             chatRoomId: chatRoomId,
             senderId: "system",
             content: "Please rate your experience with the other participant",
-            messageType: .reviewRequest
+            messageType: .reviewRequest,
+            recipientId: recipientId
         )
     }
     
