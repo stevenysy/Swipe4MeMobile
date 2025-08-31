@@ -84,6 +84,12 @@ final class ReviewManager {
             // 6. Clean up pending reminder for this request
             await removePendingReminder(userId: currentUserId, requestId: requestId)
             
+            // 7. Send confirmation message to chat
+            await ChatManager.shared.sendReviewSubmittedMessage(
+                requestId: requestId,
+                reviewerUserId: currentUserId
+            )
+            
             errorMessage = ""
             return true
             
