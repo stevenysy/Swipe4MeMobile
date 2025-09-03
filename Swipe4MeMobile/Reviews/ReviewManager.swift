@@ -70,6 +70,7 @@ final class ReviewManager {
             
             // 4. Check if both parties have now completed reviews
             let otherPartyCompleted = isRequester ? request.swiperReviewCompleted : request.requesterReviewCompleted
+            let shouldCloseChat = otherPartyCompleted // Store this before batch commit
             if otherPartyCompleted {
                 // Both parties have now completed reviews, mark request as complete
                 batch.updateData(["status": RequestStatus.complete.rawValue], forDocument: requestRef)
@@ -89,6 +90,11 @@ final class ReviewManager {
                 requestId: requestId,
                 reviewerUserId: currentUserId
             )
+            
+            // 8. Close chat room if both parties have completed their reviews
+            if shouldCloseChat {
+                await ChatManager.shared.closeChatRoom(requestId: requestId)
+            }
             
             errorMessage = ""
             return true
