@@ -33,4 +33,30 @@ extension Date {
             }
         }
     }
+    
+    var meetingDisplay: String {
+        let calendar = Calendar.current
+        let now = Date()
+        
+        if calendar.isDateInToday(self) {
+            // "meeting today at 2:30 PM"
+            return "Meeting today at \(formatted(date: .omitted, time: .shortened))"
+        } else if calendar.isDateInTomorrow(self) {
+            // "meeting tomorrow at 2:30 PM"
+            return "Meeting tomorrow at \(formatted(date: .omitted, time: .shortened))"
+        } else {
+            // "meeting on Aug 15 at 2:30 PM"
+            let calendar = Calendar.current
+            let currentYear = calendar.component(.year, from: now)
+            let meetingYear = calendar.component(.year, from: self)
+            
+            if meetingYear == currentYear {
+                // "meeting on Aug 15 at 2:30 PM"
+                return "Meeting on \(formatted(.dateTime.month(.abbreviated).day(.defaultDigits))) at \(formatted(date: .omitted, time: .shortened))"
+            } else {
+                // "meeting on Aug 15, 2023 at 2:30 PM"
+                return "Meeting on \(formatted(.dateTime.month(.abbreviated).day(.defaultDigits).year(.defaultDigits))) at \(formatted(date: .omitted, time: .shortened))"
+            }
+        }
+    }
 } 

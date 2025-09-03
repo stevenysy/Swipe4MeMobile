@@ -65,7 +65,7 @@ struct ChatConversationView: View {
                     .font(.headline)
                     .foregroundColor(.primary)
                 
-                Text("Meeting at: \(swipeRequest.meetingTime.dateValue(), style: .time)")
+                Text(swipeRequest.meetingTime.dateValue().meetingDisplay)
                     .font(.caption)
                     .foregroundColor(.secondary)
             }
