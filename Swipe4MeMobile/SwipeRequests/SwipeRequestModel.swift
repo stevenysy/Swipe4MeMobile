@@ -18,12 +18,13 @@ struct SwipeRequest: Codable, Identifiable, Equatable, Hashable {
     var cloudTaskNames: CloudTaskNames?
     var requesterReviewCompleted: Bool = false
     var swiperReviewCompleted: Bool = false
+    var tipAmount: Double?
 
     let createdAt: Timestamp
 
     init(
         requesterId: String = "", swiperId: String = "", location: DiningLocation = .commons,
-        meetingTime: Timestamp = Timestamp(), status: RequestStatus = .open
+        meetingTime: Timestamp = Timestamp(), status: RequestStatus = .open, tipAmount: Double? = nil
     ) {
         self.requesterId = requesterId
         self.swiperId = swiperId
@@ -33,6 +34,7 @@ struct SwipeRequest: Codable, Identifiable, Equatable, Hashable {
         self.cloudTaskNames = nil
         self.requesterReviewCompleted = false
         self.swiperReviewCompleted = false
+        self.tipAmount = tipAmount
         self.createdAt = Timestamp()
     }
     
