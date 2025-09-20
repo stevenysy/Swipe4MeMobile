@@ -11,6 +11,8 @@ import FirebaseCore
 struct CreateSwipeRequestView: View {
     @State var request: SwipeRequest
     @State private var selectedTime = Date()
+    @State private var tipAmountText = ""
+    @State private var showTipSection = false
     @Environment(AuthenticationManager.self) var authManager
     @Environment(\.dismiss) private var dismiss
 
@@ -34,6 +36,30 @@ struct CreateSwipeRequestView: View {
                 }
                 .frame(height: 50)
             }
+            
+            Section {
+                HStack {
+                    Text("Add Tip")
+                    Spacer()
+                    Toggle("", isOn: $showTipSection)
+                }
+                
+                if showTipSection {
+                    HStack {
+                        Text("Amount")
+                        Spacer()
+                        Text("$")
+                        TextField("0.00", text: $tipAmountText)
+                            .keyboardType(.decimalPad)
+                            .multilineTextAlignment(.trailing)
+                            .frame(width: 80)
+                    }
+                }
+            } footer: {
+                if showTipSection {
+                    Text("Optional tip to incentivize swipers. You'll coordinate payment details directly with your swiper.")
+                }
+            }
 
         }
         .navigationTitle("Make a Swipe Request")
@@ -44,6 +70,13 @@ struct CreateSwipeRequestView: View {
                 Button {
                     request.meetingTime = Timestamp(date: selectedTime)
                     request.requesterId = authManager.user?.uid ?? ""
+                    
+                    // Set tip amount if provided
+                    if showTipSection, let tipAmount = Double(tipAmountText), tipAmount > 0 {
+                        request.tipAmount = tipAmount
+                    } else {
+                        request.tipAmount = nil
+                    }
                     
                     dump(request)
                     
