@@ -26,9 +26,21 @@ struct SwipeRequestCardView: View {
                 VStack(alignment: .leading, spacing: 5) {
                     Text(request.location.rawValue)
                         .font(.headline)
-                    Text("Meeting at: \(request.meetingTime.dateValue(), style: .time)")
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
+                    HStack {
+                        Text(request.meetingTime.dateValue(), style: .time)
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                        
+                        if let tipAmount = request.tipAmount, tipAmount > 0 {
+                            Text(" | ")
+                                .font(.subheadline)
+                                .foregroundColor(.secondary)
+                            Text("$\(tipAmount, specifier: "%.0f") Tip")
+                                .font(.subheadline)
+                                .fontWeight(.bold)
+                                .foregroundColor(.green)
+                        }
+                    }
                 }
                 
                 Spacer()
