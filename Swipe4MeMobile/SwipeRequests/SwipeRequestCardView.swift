@@ -121,15 +121,17 @@ struct SwipeRequestCardView: View {
     private var readOnlyStateView: some View {
         Divider()
         
-        VStack(alignment: .leading, spacing: 8) {
-            Text(isRequesterCard ? "Swiper:" : "Requester:")
-                .font(.headline)
-        }
-        
-        if isRequesterCard {
-            UserInfoView(userId: request.swiperId)
-        } else {
-            UserInfoView(userId: request.requesterId)
+        if request.swiperId != "" && request.requesterId != "" {
+            VStack(alignment: .leading, spacing: 8) {
+                Text(isRequesterCard ? "Swiper:" : "Requester:")
+                    .font(.headline)
+            }
+            
+            if isRequesterCard {
+                UserInfoView(userId: request.swiperId)
+            } else {
+                UserInfoView(userId: request.requesterId)
+            }
         }
         
         // Modular action buttons based on status and user role
