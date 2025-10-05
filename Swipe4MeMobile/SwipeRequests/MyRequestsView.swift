@@ -8,13 +8,6 @@
 import SwiftUI
 import FirebaseFirestore
 
-// Filter options for user requests
-enum RequestFilter: String, CaseIterable {
-    case all = "All"
-    case requester = "Requester"
-    case swiper = "Swiper"
-}
-
 // Activity filter options
 enum ActivityFilter: String, CaseIterable {
     case active = "Active"
@@ -64,7 +57,6 @@ struct MyRequestsView: View {
 
 // A private view that handles the Firestore queries for user requests
 private struct UserRequestsListView: View {
-    @State private var currentFilter: RequestFilter = .all
     @State private var currentActivityFilter: ActivityFilter = .active
     
     let userId: String
@@ -75,26 +67,18 @@ private struct UserRequestsListView: View {
     
     // Combined requests based on current filters
     private var filteredRequests: [SwipeRequest] {
-        // First, get all requests based on role filter
-        let roleFilteredRequests: [SwipeRequest]
-        switch currentFilter {
-        case .all:
-            roleFilteredRequests = requesterRequests + swiperRequests
-        case .requester:
-            roleFilteredRequests = requesterRequests
-        case .swiper:
-            roleFilteredRequests = swiperRequests
-        }
+        // Combine all user requests (both as requester and swiper)
+        let allRequests = requesterRequests + swiperRequests
         
-        // Then filter by activity status using the isActive computed property
+        // Filter by activity status using the isActive computed property
         let activityFilteredRequests: [SwipeRequest]
         switch currentActivityFilter {
         case .active:
             // Active: open (future), scheduled, inProgress, awaitingReview
-            activityFilteredRequests = roleFilteredRequests.filter { $0.isActive }
+            activityFilteredRequests = allRequests.filter { $0.isActive }
         case .inactive:
             // Inactive: complete, canceled, open (past)
-            activityFilteredRequests = roleFilteredRequests.filter { !$0.isActive }
+            activityFilteredRequests = allRequests.filter { !$0.isActive }
         }
         
         // Sort by meeting time - most relevant first for each category
@@ -131,78 +115,37 @@ private struct UserRequestsListView: View {
     
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            // Filters row with pills and role dropdown
-            HStack(spacing: 12) {
-                // Two-pill filter for Active/Inactive
-                HStack(spacing: 0) {
-                    ForEach(ActivityFilter.allCases, id: \.self) { filter in
-                        Button(action: {
-                            withAnimation(.easeInOut(duration: 0.2)) {
-                                currentActivityFilter = filter
-                            }
-                        }) {
-                            Text(filter.rawValue)
-                                .font(.subheadline)
-                                .fontWeight(.medium)
-                                .padding(.horizontal, 20)
-                                .padding(.vertical, 8)
-                                .background {
-                                    if currentActivityFilter == filter {
-                                        RoundedRectangle(cornerRadius: 20)
-                                            .fill(Color.accentColor)
-                                    } else {
-                                        RoundedRectangle(cornerRadius: 20)
-                                            .fill(Color.clear)
-                                    }
-                                }
-                                .foregroundColor(currentActivityFilter == filter ? .white : .accentColor)
+            // Two-pill filter for Active/Inactive
+            HStack(spacing: 0) {
+                ForEach(ActivityFilter.allCases, id: \.self) { filter in
+                    Button(action: {
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            currentActivityFilter = filter
                         }
-                        .buttonStyle(.plain)
-                    }
-                }
-                .padding(4)
-                .background {
-                    RoundedRectangle(cornerRadius: 24)
-                        .stroke(Color.accentColor, lineWidth: 1.5)
-                }
-                
-                // Role filter dropdown
-                Menu {
-                    ForEach(RequestFilter.allCases, id: \.self) { filter in
-                        Button(action: {
-                            withAnimation(.easeInOut(duration: 0.2)) {
-                                currentFilter = filter
-                            }
-                        }) {
-                            HStack {
-                                Text(filter.rawValue)
-                                if currentFilter == filter {
-                                    Spacer()
-                                    Image(systemName: "checkmark")
-                                }
-                            }
-                        }
-                    }
-                } label: {
-                    HStack(spacing: 4) {
-                        Text(currentFilter.rawValue)
+                    }) {
+                        Text(filter.rawValue)
                             .font(.subheadline)
                             .fontWeight(.medium)
-                        Image(systemName: "chevron.down")
-                            .font(.caption)
-                            .imageScale(.small)
+                            .padding(.horizontal, 20)
+                            .padding(.vertical, 8)
+                            .background {
+                                if currentActivityFilter == filter {
+                                    RoundedRectangle(cornerRadius: 20)
+                                        .fill(Color.accentColor)
+                                } else {
+                                    RoundedRectangle(cornerRadius: 20)
+                                        .fill(Color.clear)
+                                }
+                            }
+                            .foregroundColor(currentActivityFilter == filter ? .white : .accentColor)
                     }
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 8)
-                    .background {
-                        RoundedRectangle(cornerRadius: 20)
-                            .stroke(Color.accentColor, lineWidth: 1.5)
-                    }
-                    .foregroundColor(.accentColor)
+                    .buttonStyle(.plain)
                 }
-                .buttonStyle(.plain)
-                
-                Spacer()
+            }
+            .padding(4)
+            .background {
+                RoundedRectangle(cornerRadius: 24)
+                    .stroke(Color.accentColor, lineWidth: 1.5)
             }
             .padding(.horizontal)
             
@@ -234,7 +177,6 @@ private struct UserRequestsListView: View {
                 }
             )
         }
-        .animation(.easeInOut, value: currentFilter)
         .animation(.easeInOut, value: currentActivityFilter)
         .padding(.top)
     }

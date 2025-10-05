@@ -56,9 +56,7 @@ struct CreateSwipeRequestView: View {
                     }
                 }
             } footer: {
-                if showTipSection {
-                    Text("Optional tip to incentivize swipers. You'll coordinate payment details directly with your swiper.")
-                }
+                Text("Optional tip to incentivize swipers. You'll coordinate payment details directly with your swiper.")
             }
 
         }
