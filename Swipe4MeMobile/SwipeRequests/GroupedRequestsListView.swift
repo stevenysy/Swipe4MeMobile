@@ -145,6 +145,7 @@ struct SwipeRequestListView<EmptyContent: View>: View {
 struct SwipeRequestGroupedListView<EmptyContent: View>: View {
     let requests: [SwipeRequest]
     let userId: String
+    let sortDaysDescending: Bool // true = most recent first, false = soonest first
     @ViewBuilder let emptyStateView: () -> EmptyContent
     
     @State private var selectedRequest: SwipeRequest?
@@ -156,7 +157,7 @@ struct SwipeRequestGroupedListView<EmptyContent: View>: View {
     }
 
     private var sortedDays: [Date] {
-        groupedRequests.keys.sorted()
+        groupedRequests.keys.sorted(by: sortDaysDescending ? (>) : (<))
     }
 
     var body: some View {

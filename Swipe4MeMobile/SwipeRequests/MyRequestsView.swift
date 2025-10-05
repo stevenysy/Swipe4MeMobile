@@ -8,25 +8,10 @@
 import SwiftUI
 import FirebaseFirestore
 
-// Filter options for user requests
-enum RequestFilter: String, CaseIterable {
-    case all = "All"
-    case requester = "Requester"
-    case swiper = "Swiper"
-}
-
 // Activity filter options
 enum ActivityFilter: String, CaseIterable {
     case active = "Active"
     case inactive = "Inactive"
-    case all = "All"
-}
-
-// Date filter options
-enum DateFilter: String, CaseIterable {
-    case upcoming = "Future"
-    case past = "Past"
-    case all = "All"
 }
 
 // A view that displays the current user's upcoming sessions with filtering capabilities.
@@ -72,9 +57,7 @@ struct MyRequestsView: View {
 
 // A private view that handles the Firestore queries for user requests
 private struct UserRequestsListView: View {
-    @State private var currentFilter: RequestFilter = .all
     @State private var currentActivityFilter: ActivityFilter = .active
-    @State private var currentDateFilter: DateFilter = .upcoming
     
     let userId: String
     
@@ -84,52 +67,26 @@ private struct UserRequestsListView: View {
     
     // Combined requests based on current filters
     private var filteredRequests: [SwipeRequest] {
-        // First, get all requests based on role filter
-        let roleFilteredRequests: [SwipeRequest]
-        switch currentFilter {
-        case .all:
-            roleFilteredRequests = requesterRequests + swiperRequests
-        case .requester:
-            roleFilteredRequests = requesterRequests
-        case .swiper:
-            roleFilteredRequests = swiperRequests
-        }
+        // Combine all user requests (both as requester and swiper)
+        let allRequests = requesterRequests + swiperRequests
         
-        // Then filter by activity status
+        // Filter by activity status using the isActive computed property
         let activityFilteredRequests: [SwipeRequest]
         switch currentActivityFilter {
         case .active:
-            // Active: open, scheduled, inProgress, awaitingReview
-            activityFilteredRequests = roleFilteredRequests.filter { request in
-                [.open, .scheduled, .inProgress, .awaitingReview].contains(request.status)
-            }
+            // Active: open (future), scheduled, inProgress, awaitingReview
+            activityFilteredRequests = allRequests.filter { $0.isActive }
         case .inactive:
-            // Inactive: complete, canceled
-            activityFilteredRequests = roleFilteredRequests.filter { request in
-                [.complete, .canceled].contains(request.status)
-            }
-        case .all:
-            activityFilteredRequests = roleFilteredRequests
-        }
-        
-        // Finally, filter by date
-        let now = Date()
-        let dateFilteredRequests: [SwipeRequest]
-        switch currentDateFilter {
-        case .upcoming:
-            dateFilteredRequests = activityFilteredRequests.filter { $0.meetingTime.dateValue() > now }
-        case .past:
-            dateFilteredRequests = activityFilteredRequests.filter { $0.meetingTime.dateValue() <= now }
-        case .all:
-            dateFilteredRequests = activityFilteredRequests
+            // Inactive: complete, canceled, open (past)
+            activityFilteredRequests = allRequests.filter { !$0.isActive }
         }
         
         // Sort by meeting time - most relevant first for each category
-        return dateFilteredRequests.sorted { 
-            if currentDateFilter == .past || currentActivityFilter == .inactive {
-                return $0.meetingTime.dateValue() > $1.meetingTime.dateValue() // Most recent first for past/inactive
+        return activityFilteredRequests.sorted { 
+            if currentActivityFilter == .inactive {
+                return $0.meetingTime.dateValue() > $1.meetingTime.dateValue() // Most recent first for inactive
             } else {
-                return $0.meetingTime.dateValue() < $1.meetingTime.dateValue() // Soonest first for upcoming/active
+                return $0.meetingTime.dateValue() < $1.meetingTime.dateValue() // Soonest first for active
             }
         }
     }
@@ -158,147 +115,44 @@ private struct UserRequestsListView: View {
     
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            // All filters in one row with labels
-            VStack(alignment: .leading, spacing: 8) {
-                // Filter labels
-                HStack(spacing: 8) {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Status")
-                            .font(.caption2)
-                            .foregroundColor(.secondary)
+            // Two-pill filter for Active/Inactive
+            HStack(spacing: 0) {
+                ForEach(ActivityFilter.allCases, id: \.self) { filter in
+                    Button(action: {
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            currentActivityFilter = filter
+                        }
+                    }) {
+                        Text(filter.rawValue)
+                            .font(.subheadline)
                             .fontWeight(.medium)
-                        
-                        // Activity filter dropdown
-                        Menu {
-                            ForEach(ActivityFilter.allCases, id: \.self) { filter in
-                                Button(action: {
-                                    withAnimation(.easeInOut(duration: 0.2)) {
-                                        currentActivityFilter = filter
-                                    }
-                                }) {
-                                    HStack {
-                                        Text(filter.rawValue)
-                                        if currentActivityFilter == filter {
-                                            Spacer()
-                                            Image(systemName: "checkmark")
-                                        }
-                                    }
-                                }
-                            }
-                        } label: {
-                            HStack(spacing: 4) {
-                                Text(currentActivityFilter.rawValue)
-                                    .font(.subheadline)
-                                    .fontWeight(.medium)
-                                Image(systemName: "chevron.down")
-                                    .font(.caption)
-                                    .imageScale(.small)
-                            }
-                            .padding(.horizontal, 16)
+                            .padding(.horizontal, 20)
                             .padding(.vertical, 8)
                             .background {
-                                RoundedRectangle(cornerRadius: 20)
-                                    .stroke(Color.accentColor, lineWidth: 1.5)
-                            }
-                            .foregroundColor(.accentColor)
-                        }
-                        .buttonStyle(.plain)
-                    }
-                    
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Time")
-                            .font(.caption2)
-                            .foregroundColor(.secondary)
-                            .fontWeight(.medium)
-                        
-                        // Date filter dropdown
-                        Menu {
-                            ForEach(DateFilter.allCases, id: \.self) { filter in
-                                Button(action: {
-                                    withAnimation(.easeInOut(duration: 0.2)) {
-                                        currentDateFilter = filter
-                                    }
-                                }) {
-                                    HStack {
-                                        Text(filter.rawValue)
-                                        if currentDateFilter == filter {
-                                            Spacer()
-                                            Image(systemName: "checkmark")
-                                        }
-                                    }
+                                if currentActivityFilter == filter {
+                                    RoundedRectangle(cornerRadius: 20)
+                                        .fill(Color.accentColor)
+                                } else {
+                                    RoundedRectangle(cornerRadius: 20)
+                                        .fill(Color.clear)
                                 }
                             }
-                        } label: {
-                            HStack(spacing: 4) {
-                                Text(currentDateFilter.rawValue)
-                                    .font(.subheadline)
-                                    .fontWeight(.medium)
-                                Image(systemName: "chevron.down")
-                                    .font(.caption)
-                                    .imageScale(.small)
-                            }
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 8)
-                            .background {
-                                RoundedRectangle(cornerRadius: 20)
-                                    .stroke(Color.accentColor, lineWidth: 1.5)
-                            }
-                            .foregroundColor(.accentColor)
-                        }
-                        .buttonStyle(.plain)
+                            .foregroundColor(currentActivityFilter == filter ? .white : .accentColor)
                     }
-                    
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Role")
-                            .font(.caption2)
-                            .foregroundColor(.secondary)
-                            .fontWeight(.medium)
-                        
-                        // Role filter dropdown
-                        Menu {
-                            ForEach(RequestFilter.allCases, id: \.self) { filter in
-                                Button(action: {
-                                    withAnimation(.easeInOut(duration: 0.2)) {
-                                        currentFilter = filter
-                                    }
-                                }) {
-                                    HStack {
-                                        Text(filter.rawValue)
-                                        if currentFilter == filter {
-                                            Spacer()
-                                            Image(systemName: "checkmark")
-                                        }
-                                    }
-                                }
-                            }
-                        } label: {
-                            HStack(spacing: 4) {
-                                Text(currentFilter.rawValue)
-                                    .font(.subheadline)
-                                    .fontWeight(.medium)
-                                Image(systemName: "chevron.down")
-                                    .font(.caption)
-                                    .imageScale(.small)
-                            }
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 8)
-                            .background {
-                                RoundedRectangle(cornerRadius: 20)
-                                    .stroke(Color.accentColor, lineWidth: 1.5)
-                            }
-                            .foregroundColor(.accentColor)
-                        }
-                        .buttonStyle(.plain)
-                    }
-                    
-                    Spacer()
+                    .buttonStyle(.plain)
                 }
+            }
+            .padding(4)
+            .background {
+                RoundedRectangle(cornerRadius: 24)
+                    .stroke(Color.accentColor, lineWidth: 1.5)
             }
             .padding(.horizontal)
             
             SwipeRequestGroupedListView(
                 requests: filteredRequests,
                 userId: userId,
+                sortDaysDescending: currentActivityFilter == .inactive,
                 emptyStateView: {
                     VStack {
                         Spacer()
@@ -323,69 +177,34 @@ private struct UserRequestsListView: View {
                 }
             )
         }
-        .animation(.easeInOut, value: currentFilter)
         .animation(.easeInOut, value: currentActivityFilter)
-        .animation(.easeInOut, value: currentDateFilter)
         .padding(.top)
     }
     
     private var emptyStateIcon: String {
-        // Prioritize activity status, then date for icon selection
         switch currentActivityFilter {
         case .active:
-            return currentDateFilter == .past ? "clock.badge.exclamationmark" : "calendar.badge.exclamationmark"
+            return "calendar.badge.exclamationmark"
         case .inactive:
             return "archivebox"
-        case .all:
-            return currentDateFilter == .past ? "clock.badge.exclamationmark" : "calendar.badge.exclamationmark"
         }
     }
     
     private var emptyStateTitle: String {
-        // Combine activity and date context for title
-        switch (currentActivityFilter, currentDateFilter) {
-        case (.active, .upcoming):
-            return "No Upcoming Active Requests"
-        case (.active, .past):
-            return "No Past Active Requests"
-        case (.active, .all):
+        switch currentActivityFilter {
+        case .active:
             return "No Active Requests"
-        case (.inactive, .upcoming):
-            return "No Upcoming Inactive Requests"
-        case (.inactive, .past):
-            return "No Past Inactive Requests"
-        case (.inactive, .all):
+        case .inactive:
             return "No Inactive Requests"
-        case (.all, .upcoming):
-            return "No Upcoming Requests"
-        case (.all, .past):
-            return "No Past Requests"
-        case (.all, .all):
-            return "No Requests"
         }
     }
     
     private var emptyStateMessage: String {
-        // Context-aware messaging based on filter combination
-        switch (currentActivityFilter, currentDateFilter) {
-        case (.active, .upcoming):
-            return "You don't have any upcoming active requests that need attention."
-        case (.active, .past):
-            return "You don't have any past active requests. This might include requests awaiting review from earlier meetings."
-        case (.active, .all):
+        switch currentActivityFilter {
+        case .active:
             return "You don't have any active requests that need attention."
-        case (.inactive, .upcoming):
-            return "You don't have any upcoming requests that are completed or canceled."
-        case (.inactive, .past):
-            return "You don't have any past requests that are completed or canceled."
-        case (.inactive, .all):
+        case .inactive:
             return "You don't have any completed or canceled requests yet."
-        case (.all, .upcoming):
-            return "You don't have any upcoming requests scheduled."
-        case (.all, .past):
-            return "You don't have any past requests in your history."
-        case (.all, .all):
-            return "You don't have any swipe requests yet."
         }
     }
 }
