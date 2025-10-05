@@ -45,10 +45,14 @@ struct UserDashboardView: View {
                     .fontWeight(.semibold)
                 }
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button(action: {
-                        authManager.signOut()
-                    }) {
-                        Image(systemName: "rectangle.portrait.and.arrow.right")
+                    Menu {
+                        Button(role: .destructive, action: {
+                            authManager.signOut()
+                        }) {
+                            Label("Log Out", systemImage: "rectangle.portrait.and.arrow.right")
+                        }
+                    } label: {
+                        Image(systemName: "ellipsis")
                             .font(.title3)
                     }
                     .tint(.primary)
