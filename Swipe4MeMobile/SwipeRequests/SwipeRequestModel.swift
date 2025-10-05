@@ -73,6 +73,21 @@ struct SwipeRequest: Codable, Identifiable, Equatable, Hashable {
         
         return currentUserCompleted && !otherUserCompleted
     }
+    
+    /// Determines if this request is active or inactive for filtering purposes
+    /// Active: open (future), scheduled, inProgress, awaitingReview
+    /// Inactive: complete, canceled, open (past - no swiper picked it up)
+    var isActive: Bool {
+        switch status {
+        case .open:
+            // Open requests in the past are inactive
+            return meetingTime.dateValue() > Date()
+        case .scheduled, .inProgress, .awaitingReview:
+            return true
+        case .complete, .canceled:
+            return false
+        }
+    }
 }
 
 enum RequestStatus: String, Codable, CaseIterable {
