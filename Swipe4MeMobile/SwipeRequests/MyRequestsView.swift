@@ -209,6 +209,7 @@ private struct UserRequestsListView: View {
             SwipeRequestGroupedListView(
                 requests: filteredRequests,
                 userId: userId,
+                sortDaysDescending: currentActivityFilter == .inactive,
                 emptyStateView: {
                     VStack {
                         Spacer()
