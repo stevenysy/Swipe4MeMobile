@@ -224,7 +224,7 @@ struct SwipeRequestCardView: View {
                     viewModel.handleEdit(for: request)
                 }) {
                     HStack {
-                        Text("Edit")
+                        Text("Change")
                     }
                     .frame(maxWidth: .infinity)
                 }
@@ -270,17 +270,27 @@ struct SwipeRequestCardView: View {
         .fontWeight(.semibold)
         
         HStack {
-            Button("Cancel", role: .cancel) {
+            Button(action: {
                 viewModel.cancelEditing()
+            }) {
+                HStack {
+                    Text("Cancel")
+                }
+                .frame(maxWidth: .infinity)
             }
             .buttonStyle(.bordered)
-            .frame(maxWidth: .infinity)
-            
-            Button("Submit") {
+            .controlSize(.large)
+
+            Button(action: {
                 viewModel.handleSubmit(for: request)
+            }) {
+                HStack {
+                    Text("Submit")
+                }
+                .frame(maxWidth: .infinity)
             }
             .buttonStyle(.borderedProminent)
-            .frame(maxWidth: .infinity)
+            .controlSize(.large)
         }
     }
     

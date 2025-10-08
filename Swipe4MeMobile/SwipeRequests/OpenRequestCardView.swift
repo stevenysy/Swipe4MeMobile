@@ -64,11 +64,16 @@ struct OpenRequestCardView: View {
         }
         .font(.body)
         
-        Button("Accept Request") {
+        Button(action: {
             acceptRequest()
+        }) {
+            HStack {
+                Text("Accept Request")
+            }
+            .frame(maxWidth: .infinity)
         }
         .buttonStyle(.borderedProminent)
-        .frame(maxWidth: .infinity)
+        .controlSize(.large)
     }
 
     private func acceptRequest() {
