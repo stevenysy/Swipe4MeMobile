@@ -20,12 +20,34 @@ struct SwipeRequestCardView: View {
         return true
     }
     
+    // Check if current user is the swiper
+    private var isCurrentUserSwiper: Bool {
+        guard let currentUserId = UserManager.shared.currentUser?.id else {
+            return false
+        }
+        return request.swiperId == currentUserId
+    }
+    
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             HStack {
                 VStack(alignment: .leading, spacing: 5) {
-                    Text(request.location.rawValue)
-                        .font(.headline)
+                    HStack(spacing: 8) {
+                        Text(request.location.rawValue)
+                            .font(.headline)
+                        
+                        // Show "Swiper" tag if current user is the swiper
+                        if isCurrentUserSwiper {
+                            Text("Swiper")
+                                .font(.caption.bold())
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 5)
+                                .background(Color.indigo.opacity(0.15))
+                                .foregroundColor(.indigo)
+                                .cornerRadius(8)
+                        }
+                    }
+                    
                     HStack {
                         Text(request.meetingTime.dateValue(), style: .time)
                             .font(.subheadline)
