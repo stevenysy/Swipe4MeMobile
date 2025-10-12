@@ -6,10 +6,12 @@
 //
 
 import SwiftUI
+import PhotosUI
 
 struct MyProfileSheet: View {
     let user: SFMUser
     @Environment(\.dismiss) private var dismiss
+    @State private var selectedPhoto: PhotosPickerItem?
     
     var body: some View {
         NavigationStack {
@@ -60,9 +62,7 @@ struct MyProfileSheet: View {
                 Spacer()
                 
                 // Change Profile Picture Button
-                Button(action: {
-                    // TODO: Handle profile picture change
-                }) {
+                PhotosPicker(selection: $selectedPhoto, matching: .images) {
                     Text("Change profile picture")
                         .font(.headline)
                         .foregroundColor(.white)
@@ -70,6 +70,20 @@ struct MyProfileSheet: View {
                         .padding()
                         .background(Color.blue)
                         .cornerRadius(12)
+                }
+                .onChange(of: selectedPhoto) { oldValue, newValue in
+                    guard let newValue = newValue else { return }
+                    
+                    print("📸 Photo selected:")
+                    print("  - Identifier: \(newValue.itemIdentifier ?? "none")")
+                    print("  - Supported content types: \(newValue.supportedContentTypes)")
+                    
+                    Task {
+                        if let data = try? await newValue.loadTransferable(type: Data.self) {
+                            print("  - Data size: \(data.count) bytes")
+                            print("  - Data size (MB): \(Double(data.count) / 1_048_576)")
+                        }
+                    }
                 }
                 .padding(.horizontal, 20)
                 .padding(.bottom, 32)
