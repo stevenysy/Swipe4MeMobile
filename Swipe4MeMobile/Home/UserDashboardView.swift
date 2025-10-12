@@ -10,6 +10,7 @@ import FirebaseFirestore
 
 struct UserDashboardView: View {
     @Environment(AuthenticationManager.self) private var authManager
+    @State private var showingProfileSheet = false
 
     var body: some View {
         NavigationStack {
@@ -46,6 +47,12 @@ struct UserDashboardView: View {
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Menu {
+                        Button(action: {
+                            showingProfileSheet = true
+                        }) {
+                            Label("My Profile", systemImage: "person.circle")
+                        }
+                        
                         Button(role: .destructive, action: {
                             authManager.signOut()
                         }) {
@@ -56,6 +63,11 @@ struct UserDashboardView: View {
                             .font(.title3)
                     }
                     .tint(.primary)
+                }
+            }
+            .sheet(isPresented: $showingProfileSheet) {
+                if let currentUser = UserManager.shared.currentUser {
+                    MyProfileSheet(user: currentUser)
                 }
             }
         }
