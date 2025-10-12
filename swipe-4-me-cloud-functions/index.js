@@ -551,29 +551,44 @@ exports.sendChatMessageNotification = onDocumentCreated(
         .collection("swipeRequests")
         .doc(chatRoomId)
         .get();
-      let locationContext = "";
+      let location = "Unknown location";
 
       if (requestDoc.exists) {
         const requestData = requestDoc.data();
-        locationContext = ` (${requestData.location})`;
+        location = requestData.location || location;
       }
 
+      // Format timestamp for notification
+      const messageTimestamp = messageData.timestamp?.toDate() || new Date();
+      const hours = messageTimestamp.getHours();
+      const minutes = messageTimestamp.getMinutes().toString().padStart(2, "0");
+      const ampm = hours >= 12 ? "PM" : "AM";
+      const displayHours = hours % 12 || 12;
+      const timeString = `${displayHours}:${minutes} ${ampm}`;
+
+      const month = messageTimestamp.getMonth() + 1;
+      const day = messageTimestamp.getDate();
+      const year = messageTimestamp.getFullYear();
+      const currentYear = new Date().getFullYear();
+      const dateString =
+        year === currentYear ? `${month}/${day}` : `${month}/${day}/${year}`;
+
       // Customize notification based on message type
-      let notificationTitle = `${senderName}${locationContext}`;
-      let notificationBody = messageData.content;
+      let notificationTitle = `${location} @ ${timeString} ${dateString}`;
+      let notificationBody = `${senderName}: ${messageData.content}`;
       let notificationType = "chatMessage";
 
       if (messageData.messageType === "changeProposal") {
-        notificationTitle = `${senderName} sent a change proposal${locationContext}`;
-        notificationBody = "Tap to view and respond to the proposed changes";
+        notificationTitle = `${location} @ ${timeString} ${dateString}`;
+        notificationBody = `${senderName}: sent a change proposal - Tap to view and respond`;
         notificationType = "changeProposal";
       } else if (messageData.messageType === "proposalAccepted") {
-        notificationTitle = `${senderName} accepted your proposal${locationContext}`;
-        notificationBody = "Your proposed changes have been accepted";
+        notificationTitle = `${location} @ ${timeString} ${dateString}`;
+        notificationBody = `${senderName}: accepted your proposal`;
         notificationType = "proposalAccepted";
       } else if (messageData.messageType === "proposalDeclined") {
-        notificationTitle = `${senderName} declined your proposal${locationContext}`;
-        notificationBody = "Your proposed changes were declined";
+        notificationTitle = `${location} @ ${timeString} ${dateString}`;
+        notificationBody = `${senderName}: declined your proposal`;
         notificationType = "proposalDeclined";
       }
 
