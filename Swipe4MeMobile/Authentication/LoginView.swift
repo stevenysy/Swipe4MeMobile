@@ -9,12 +9,40 @@ import SwiftUI
 
 struct LoginView: View {
     @Environment(AuthenticationManager.self) var authManager
+    @State private var tapCount = 0
+    @State private var showGoogleSignIn = false
+    
     var body: some View {
-        Text("Welcome to Swipe4Me!")
-        
-        GoogleSignInButton
-        
-        MicrosoftSignInButton
+        GeometryReader { geometry in
+            VStack(spacing: 0) {
+                Spacer()
+                    .frame(height: geometry.size.height / 4)
+                
+                Text("Welcome to Swipe4Me!")
+                    .font(.title)
+                    .fontWeight(.bold)
+                    .onTapGesture {
+                        tapCount += 1
+                        if tapCount >= 5 {
+                            showGoogleSignIn = true
+                        }
+                    }
+                
+                Spacer()
+                
+                VStack(spacing: 12) {
+                    if showGoogleSignIn {
+                        GoogleSignInButton
+                    }
+                    
+                    MicrosoftSignInButton
+                }
+                .padding(.horizontal)
+                
+                Spacer()
+                    .frame(height: geometry.size.height / 3)
+            }
+        }
     }
     
     var GoogleSignInButton: some View {
@@ -59,8 +87,7 @@ struct LoginView: View {
             }
         } label: {
             HStack(alignment: .center, spacing: 0) {
-                Image("Microsoft")
-                Text("Sign in with Microsoft")
+                Text("Sign in with Vanderbilt Email")
             }
             .padding()
             .frame(maxWidth: .infinity)
