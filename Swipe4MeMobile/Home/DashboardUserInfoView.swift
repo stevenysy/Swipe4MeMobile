@@ -58,15 +58,6 @@ struct DashboardUserInfoView: View {
             }
             
             Spacer()
-            
-            // Edit Button
-            Button(action: {
-                // TODO: Navigate to edit profile page
-            }) {
-                Image(systemName: "pencil")
-                    .font(.title3)
-                    .foregroundColor(.primary)
-            }
         }
         .padding(.horizontal, 20)
         .padding(.vertical, 16)

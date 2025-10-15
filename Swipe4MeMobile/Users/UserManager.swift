@@ -17,6 +17,7 @@ final class UserManager {
     
     private var userCache: [String: SFMUser] = [:]
     private var authStateListener: AuthStateDidChangeListenerHandle?
+    private var userDocumentListener: ListenerRegistration?
     
     var userID: String { Auth.auth().currentUser?.uid ?? "" }
     var currentUser: SFMUser?
@@ -29,16 +30,61 @@ final class UserManager {
         if authStateListener == nil {
             authStateListener = Auth.auth().addStateDidChangeListener { auth, user in
                 if user != nil {
-                    // User is signed in, fetch their data
+                    // User is signed in, setup listener for their document
                     Task {
-                        await self.fetchCurrentUser()
+                        await self.setupUserDocumentListener()
                     }
                 } else {
-                    // User is signed out, clear current user
+                    // User is signed out, clear current user and remove listener
+                    self.removeUserDocumentListener()
                     self.currentUser = nil
                 }
             }
         }
+    }
+    
+    private func setupUserDocumentListener() async {
+        guard !userID.isEmpty else {
+            print("No authenticated user found")
+            return
+        }
+        
+        // Remove any existing listener
+        removeUserDocumentListener()
+        
+        // Setup real-time listener for user document
+        userDocumentListener = db.collection("users").document(userID)
+            .addSnapshotListener { [weak self] documentSnapshot, error in
+                guard let self = self else { return }
+                
+                if let error = error {
+                    self.errorMessage = "Failed to listen to user document: \(error.localizedDescription)"
+                    print(self.errorMessage)
+                    return
+                }
+                
+                guard let document = documentSnapshot else {
+                    print("User document does not exist")
+                    return
+                }
+                
+                do {
+                    let user = try document.data(as: SFMUser.self)
+                    Task { @MainActor in
+                        self.currentUser = user
+                        self.userCache[self.userID] = user
+                        print("✅ Current user updated from Firestore: \(user.firstName) \(user.lastName)")
+                    }
+                } catch {
+                    self.errorMessage = "Failed to decode user: \(error.localizedDescription)"
+                    print(self.errorMessage)
+                }
+            }
+    }
+    
+    private func removeUserDocumentListener() {
+        userDocumentListener?.remove()
+        userDocumentListener = nil
     }
     
     func fetchCurrentUser() async {
