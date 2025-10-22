@@ -11,13 +11,13 @@ struct LoginView: View {
     @Environment(AuthenticationManager.self) var authManager
     @State private var tapCount = 0
     @State private var showGoogleSignIn = false
-    
+
     var body: some View {
         GeometryReader { geometry in
             VStack(spacing: 0) {
                 Spacer()
                     .frame(height: geometry.size.height / 4)
-                
+
                 Text("Swipe4Me!")
                     .font(.largeTitle)
                     .fontWeight(.bold)
@@ -27,36 +27,45 @@ struct LoginView: View {
                             showGoogleSignIn = true
                         }
                     }
-                
+
                 Spacer()
-                
+
                 VStack(spacing: 12) {
                     if showGoogleSignIn {
                         GoogleSignInButton
+
+                        Text("Demo/Review Mode")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
                     }
-                    
+
                     MicrosoftSignInButton
                 }
                 .padding(.horizontal)
-                
+                .padding(.horizontal)
+
                 Spacer()
                     .frame(height: geometry.size.height / 3)
             }
         }
     }
-    
+
     var GoogleSignInButton: some View {
         Button {
             Task {
-                guard let firebaseUser = await authManager.signInWithGoogle() else { return }
-                
+                guard let firebaseUser = await authManager.signInWithGoogle()
+                else { return }
+
                 if authManager.isFirstTimeSignIn {
-                    let newUser = UserManager.shared.createSfmUserFromGoogleSignIn(firebaseUser: firebaseUser)
+                    let newUser = UserManager.shared
+                        .createSfmUserFromGoogleSignIn(
+                            firebaseUser: firebaseUser)
                     await UserManager.shared.createNewUser(newUser: newUser)
                 }
-                
+
                 // Setup notifications after successful sign-in
-                await NotificationManager.shared.setupNotificationsForUser(firebaseUser.uid)
+                await NotificationManager.shared.setupNotificationsForUser(
+                    firebaseUser.uid)
             }
         } label: {
             HStack(alignment: .center, spacing: 0) {
@@ -71,19 +80,23 @@ struct LoginView: View {
         .buttonStyle(.bordered)
         .cornerRadius(10)
     }
-    
+
     var MicrosoftSignInButton: some View {
         Button {
             Task {
-                guard let firebaseUser = await authManager.signInWithMicrosoft() else { return }
-                
+                guard let firebaseUser = await authManager.signInWithMicrosoft()
+                else { return }
+
                 if authManager.isFirstTimeSignIn {
-                    let newUser = UserManager.shared.createSfmUserFromMicrosoftSignIn(firebaseUser: firebaseUser)
+                    let newUser = UserManager.shared
+                        .createSfmUserFromMicrosoftSignIn(
+                            firebaseUser: firebaseUser)
                     await UserManager.shared.createNewUser(newUser: newUser)
                 }
-                
+
                 // Setup notifications after successful sign-in
-                await NotificationManager.shared.setupNotificationsForUser(firebaseUser.uid)
+                await NotificationManager.shared.setupNotificationsForUser(
+                    firebaseUser.uid)
             }
         } label: {
             HStack(alignment: .center, spacing: 0) {
