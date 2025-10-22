@@ -18,8 +18,8 @@ struct LoginView: View {
                 Spacer()
                     .frame(height: geometry.size.height / 4)
                 
-                Text("Welcome to Swipe4Me!")
-                    .font(.title)
+                Text("Swipe4Me!")
+                    .font(.largeTitle)
                     .fontWeight(.bold)
                     .onTapGesture {
                         tapCount += 1
