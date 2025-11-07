@@ -471,7 +471,7 @@
 				CODE_SIGN_ENTITLEMENTS = Swipe4MeMobile/Swipe4MeMobile.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				DEVELOPMENT_ASSET_PATHS = "\"Swipe4MeMobile/Preview Content\"";
 				DEVELOPMENT_TEAM = 4BZMLQFM94;
 				ENABLE_PREVIEWS = YES;
@@ -504,7 +504,7 @@
 				CODE_SIGN_ENTITLEMENTS = Swipe4MeMobile/Swipe4MeMobile.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				DEVELOPMENT_ASSET_PATHS = "\"Swipe4MeMobile/Preview Content\"";
 				DEVELOPMENT_TEAM = 4BZMLQFM94;
 				ENABLE_PREVIEWS = YES;
