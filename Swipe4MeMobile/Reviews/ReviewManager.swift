@@ -44,6 +44,15 @@ final class ReviewManager {
                 return false
             }
             
+            // Check if user has already completed review
+            let isRequester = currentUserId == request.requesterId
+            let alreadyCompleted = isRequester ? request.requesterReviewCompleted : request.swiperReviewCompleted
+            
+            if alreadyCompleted {
+                errorMessage = "You have already submitted a review for this request"
+                return false
+            }
+            
             let batch = db.batch()
             
             // 1. Add the review
@@ -64,7 +73,6 @@ final class ReviewManager {
             ], forDocument: userRef)
             
             // 3. Update the appropriate review completion flag
-            let isRequester = currentUserId == request.requesterId
             let reviewCompletionField = isRequester ? "requesterReviewCompleted" : "swiperReviewCompleted"
             batch.updateData([reviewCompletionField: true], forDocument: requestRef)
             

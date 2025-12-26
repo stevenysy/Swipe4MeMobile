@@ -487,22 +487,41 @@ struct ReviewRequestCardView: View {
             Divider()
                 .padding(.horizontal, 16)
             
-            Button(action: openReviewSheet) {
+            let currentUserId = Auth.auth().currentUser?.uid ?? ""
+            let hasRated = swipeRequest.hasUserCompletedReview(userId: currentUserId)
+            
+            if hasRated {
                 HStack {
-                    Image(systemName: "star.fill")
-                        .font(.subheadline)
-                    Text("Rate Experience")
-                        .font(.subheadline)
-                        .fontWeight(.medium)
+                    Image(systemName: "checkmark.circle.fill")
+                    Text("Review Submitted")
                 }
-                .foregroundColor(.white)
+                .font(.subheadline)
+                .fontWeight(.medium)
+                .foregroundColor(.secondary)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 12)
-                .background(.blue)
+                .background(Color(.systemGray6))
                 .cornerRadius(8)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 16)
+            } else {
+                Button(action: openReviewSheet) {
+                    HStack {
+                        Image(systemName: "star.fill")
+                            .font(.subheadline)
+                        Text("Rate Experience")
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+                    }
+                    .foregroundColor(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 12)
+                    .background(.blue)
+                    .cornerRadius(8)
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 16)
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 16)
         }
         .background(Color(.systemBackground))
         .cornerRadius(12)

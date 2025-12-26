@@ -174,16 +174,33 @@ struct SwipeRequestCardView: View {
     
     @ViewBuilder
     private var awaitingReviewActionButtons: some View {
-        Button(action: {
-            viewModel.handleRate(for: request)
-        }) {
+        let currentUserId = UserManager.shared.userID
+        let hasRated = request.hasUserCompletedReview(userId: currentUserId)
+        
+        if hasRated {
             HStack {
-                Text("Rate")
+                Image(systemName: "checkmark.circle.fill")
+                    .foregroundColor(.green)
+                Text("Review Submitted")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
             }
             .frame(maxWidth: .infinity)
+            .padding(.vertical, 12)
+            .background(Color(.systemGray6))
+            .cornerRadius(8)
+        } else {
+            Button(action: {
+                viewModel.handleRate(for: request)
+            }) {
+                HStack {
+                    Text("Rate")
+                }
+                .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.borderedProminent)
+            .controlSize(.large)
         }
-        .buttonStyle(.borderedProminent)
-        .controlSize(.large)
     }
     
     @ViewBuilder

@@ -19,6 +19,11 @@ struct ReviewSheetView: View {
     private let reviewManager = ReviewManager.shared
     private let snackbarManager = SnackbarManager.shared
     
+    private var hasAlreadyRated: Bool {
+        let currentUserId = UserManager.shared.userID
+        return request.hasUserCompletedReview(userId: currentUserId)
+    }
+    
     var body: some View {
         NavigationView {
             VStack(spacing: 24) {
@@ -47,6 +52,15 @@ struct ReviewSheetView: View {
                 // Star Rating
                 StarRatingView(rating: $selectedRating)
                     .padding(.horizontal)
+                    .disabled(hasAlreadyRated)
+                
+                if hasAlreadyRated {
+                    Text("You have already submitted a review for this experience.")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .multilineTextAlignment(.center)
+                        .padding(.top, 8)
+                }
                 
                 Spacer()
                 
@@ -59,13 +73,13 @@ struct ReviewSheetView: View {
                                     .scaleEffect(0.8)
                                     .tint(.white)
                             }
-                            Text(isSubmitting ? "Submitting..." : "Submit Review")
+                            Text(isSubmitting ? "Submitting..." : (hasAlreadyRated ? "Already Submitted" : "Submit Review"))
                         }
                         .frame(maxWidth: .infinity)
                         .frame(height: 50)
                     }
                     .buttonStyle(.borderedProminent)
-                    .disabled(selectedRating == 0 || isSubmitting)
+                    .disabled(selectedRating == 0 || isSubmitting || hasAlreadyRated)
                     
                     Button("Remind Me Later") {
                         dismiss()
