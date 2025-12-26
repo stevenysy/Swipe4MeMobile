@@ -41,6 +41,7 @@ enum AuthenticationState {
     func signOut() {
         do {
             try Auth.auth().signOut()
+            isFirstTimeSignIn = false
             ChatManager.shared.stopAllListeners()
         } catch {
             print(error)
@@ -118,8 +119,8 @@ extension AuthenticationManager {
             let firebaseUser = result.user
             
             let isNewUser = result.additionalUserInfo?.isNewUser ?? false
+            self.isFirstTimeSignIn = isNewUser
             if isNewUser {
-                isFirstTimeSignIn = true
                 print("New user \(firebaseUser.uid) signed in with email \(firebaseUser.email ?? "unknown")")
             } else {
                 print("Returning user \(firebaseUser.uid) signed in with email \(firebaseUser.email ?? "unknown")")
@@ -163,8 +164,8 @@ extension AuthenticationManager {
             let firebaseUser = result.user
             
             let isNewUser = result.additionalUserInfo?.isNewUser ?? false
+            self.isFirstTimeSignIn = isNewUser
             if isNewUser {
-                isFirstTimeSignIn = true
                 print("New user \(firebaseUser.uid) signed in with email \(firebaseUser.email ?? "unknown")")
             } else {
                 print("Returning user \(firebaseUser.uid) signed in with email \(firebaseUser.email ?? "unknown")")
